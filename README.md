@@ -68,7 +68,8 @@ flutter run -d emulator
 The repository includes `.github/workflows/deploy-demo-vercel.yml` for the
 Flutter web demo build.
 
-Required GitHub secrets:
+Required GitHub secrets, either as repository secrets or as environment secrets
+on the GitHub environment named `production`:
 
 - `VERCEL_TOKEN`
 - `VERCEL_ORG_ID`
