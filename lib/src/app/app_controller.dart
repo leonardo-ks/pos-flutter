@@ -50,7 +50,6 @@ class AppController extends ChangeNotifier {
       _guard,
       _featureRepository,
       products: products,
-      onReportsInvalidated: () {},
     );
     customers = CustomerController(
       _guard,
@@ -67,11 +66,6 @@ class AppController extends ChangeNotifier {
         kind,
         reports.reportQuery(kind: kind, search: search),
       ),
-      loadMoreGenericReport: (kind, {search}) =>
-          featureRecords.loadMoreGenericReport(
-            kind,
-            reports.reportQuery(kind: kind, search: search),
-          ),
     );
     _guard.addListener(notifyListeners);
     products.addListener(notifyListeners);

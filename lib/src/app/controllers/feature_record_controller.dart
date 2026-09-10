@@ -12,14 +12,11 @@ class FeatureRecordController extends ChangeNotifier {
     this._guard,
     this._repo, {
     required ProductController products,
-    required void Function() onReportsInvalidated,
-  }) : _products = products,
-       _onReportsInvalidated = onReportsInvalidated;
+  }) : _products = products;
 
   final AsyncGuard _guard;
   final FeatureRepository _repo;
   final ProductController _products;
-  final void Function() _onReportsInvalidated;
 
   final Map<String, List<FeatureRecord>> _records = {};
   final Map<String, String> _queryKeys = {};
@@ -182,7 +179,6 @@ class FeatureRecordController extends ChangeNotifier {
       _queryKeys.remove(path);
       _nextCursors.remove(path);
     }
-    _onReportsInvalidated();
   }
 
   String _queryKey(Map<String, String>? query) {

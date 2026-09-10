@@ -1,6 +1,5 @@
-// ignore_for_file: prefer_initializing_formals, unused_field
-// (private fields can't be named parameters, so the initializer list is required;
-//  _loadMoreGenericReport is kept for symmetry with _loadGenericReport)
+// ignore_for_file: prefer_initializing_formals
+// (private fields can't be named parameters, so the initializer list is required)
 import 'package:flutter/material.dart';
 
 import '../../auth/models/app_user.dart';
@@ -21,12 +20,9 @@ class ReportController extends ChangeNotifier {
     required List<Customer> Function() customers,
     required Future<void> Function(String kind, {String? search})
     loadGenericReport,
-    required Future<void> Function(String kind, {String? search})
-    loadMoreGenericReport,
   }) : _canManage = canManage,
        _customers = customers,
-       _loadGenericReport = loadGenericReport,
-       _loadMoreGenericReport = loadMoreGenericReport;
+       _loadGenericReport = loadGenericReport;
 
   final AsyncGuard _guard;
   final ReportRepository _reportRepo;
@@ -34,8 +30,6 @@ class ReportController extends ChangeNotifier {
   final bool Function() _canManage;
   final List<Customer> Function() _customers;
   final Future<void> Function(String kind, {String? search}) _loadGenericReport;
-  final Future<void> Function(String kind, {String? search})
-  _loadMoreGenericReport;
 
   final ReportFilterState report = ReportFilterState();
   final ReportFilterState returnReport = ReportFilterState();

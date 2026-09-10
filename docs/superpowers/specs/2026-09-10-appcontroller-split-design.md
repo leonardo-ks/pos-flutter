@@ -264,3 +264,28 @@ Each step is one commit, `flutter analyze` + `flutter test` green before the nex
 - **Money math** (`discountAmount`, `grandTotal`, `cashChange`) moves into
   `CartController`. Characterization tests pin exact values with seeded discount
   records before the move.
+
+## Post-implementation note: failure semantics of guard-nested reloads
+
+During the split, `AppController.login()`, `checkout()`, and `refreshData()` stopped
+calling the bare `_loadProductPage()` / `_loadCustomerPage()` helpers — whose throws
+propagated out and aborted the enclosing method — and now call
+`products.reload()` / `customers.reload()` instead. Those are nested `AsyncGuard.run`
+calls: a throw inside them is caught into `errorMessage` and the call returns
+normally, so the enclosing method runs to completion instead of unwinding.
+
+The behavioural consequences, adopted as intentional:
+
+- `login()` no longer skips the `/api/role-permissions` fetch and the master-data
+  loads when the product endpoint is down. Permissions become table-driven from
+  whatever `/api/role-permissions` returns rather than fail-open because login
+  bailed before loading them.
+- `checkout()` always clears the cart after a committed sale even if the post-sale
+  refresh (`products.reload()` / `customers.reload()` / transaction refetch) fails.
+  This prevents a double-charge if the cashier re-taps checkout after a transient
+  refresh error on an already-committed transaction.
+- Manual `refreshData()` now shows the busy spinner (`isBusy` flips true) and clears
+  a stale `errorMessage`, because its first action is a top-level `AsyncGuard.run`
+  entrant.
+
+Covered by `test/app/app_controller_error_paths_test.dart` error-path tests A/B/C.
