@@ -48,3 +48,6 @@ app.*.map.json
 # graphify knowledge-graph output (not part of the app)
 graphify-out/
 lib/graphify-out/
+
+# Vercel CLI link state (created by `vercel link` / `vercel pull`)
+.vercel/
