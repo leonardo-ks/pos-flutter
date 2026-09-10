@@ -8,8 +8,8 @@ void main() {
     final c = AppController();
     await c.login(username: 'manajer', password: 'password1234');
     expect(c.isLoggedIn, isTrue);
-    expect(c.featureRecords('/api/product-categories'), isNotNull);
-    expect(c.customerGroupDiscounts, isNotNull);
+    expect(c.featureRecords.records('/api/product-categories'), isNotNull);
+    expect(c.featureRecords.customerGroupDiscounts, isNotNull);
   });
 
   test('logout returns observable state to initial values', () async {

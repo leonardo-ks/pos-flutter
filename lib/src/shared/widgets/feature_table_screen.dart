@@ -85,11 +85,11 @@ class _FeatureTableScreenState extends State<FeatureTableScreen> {
       _loaded = true;
       final controller = AppScope.of(context);
       Future.microtask(() async {
-        await controller.loadFeatureRecords(widget.path);
+        await controller.featureRecords.load(widget.path);
         for (final field in widget.fields) {
           final referencePath = field.referencePath;
           if (referencePath != null) {
-            await controller.loadFeatureRecords(referencePath);
+            await controller.featureRecords.load(referencePath);
           }
         }
       });
@@ -99,7 +99,7 @@ class _FeatureTableScreenState extends State<FeatureTableScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final records = controller.featureRecords(widget.path);
+    final records = controller.featureRecords.records(widget.path);
     final query = _filter.trim().isEmpty ? null : {'q': _filter.trim()};
     final permissionSection =
         widget.permissionSection ?? _permissionSectionForPath(widget.path);
@@ -131,7 +131,7 @@ class _FeatureTableScreenState extends State<FeatureTableScreen> {
                   controller: _filterController,
                   onChanged: (value) {
                     setState(() => _filter = value);
-                    controller.loadFeatureRecords(
+                    controller.featureRecords.load(
                       widget.path,
                       query: value.trim().isEmpty ? null : {'q': value.trim()},
                       force: true,
@@ -147,7 +147,7 @@ class _FeatureTableScreenState extends State<FeatureTableScreen> {
                             onPressed: () {
                               _filterController.clear();
                               setState(() => _filter = '');
-                              controller.loadFeatureRecords(
+                              controller.featureRecords.load(
                                 widget.path,
                                 force: true,
                               );
@@ -195,7 +195,7 @@ class _FeatureTableScreenState extends State<FeatureTableScreen> {
                   padding: const EdgeInsets.all(16),
                   itemCount:
                       records.length +
-                      (controller.canLoadMoreFeatureRecords(
+                      (controller.featureRecords.canLoadMore(
                             widget.path,
                             query: query,
                           )
@@ -210,7 +210,7 @@ class _FeatureTableScreenState extends State<FeatureTableScreen> {
                           child: OutlinedButton.icon(
                             onPressed: controller.isBusy
                                 ? null
-                                : () => controller.loadMoreFeatureRecords(
+                                : () => controller.featureRecords.loadMore(
                                     widget.path,
                                     query: query,
                                   ),
@@ -265,7 +265,7 @@ class _FeatureTableScreenState extends State<FeatureTableScreen> {
       ),
     );
     if (confirmed == true) {
-      await controller.deleteFeatureRecord(widget.path, record);
+      await controller.featureRecords.remove(widget.path, record);
     }
   }
 
@@ -364,7 +364,7 @@ class _FeatureTableScreenState extends State<FeatureTableScreen> {
                   },
                 ];
               }
-              await controller.saveFeatureRecord(widget.path, {
+              await controller.featureRecords.save(widget.path, {
                 ...?widget.createTemplate,
                 ...body,
               }, id: record?.id);
@@ -397,7 +397,7 @@ class _FeatureTableScreenState extends State<FeatureTableScreen> {
             .padRight(3, 'X')
             .substring(0, 3),
     };
-    final records = AppScope.of(context).featureRecords(widget.path);
+    final records = AppScope.of(context).featureRecords.records(widget.path);
     final next = records.fold<int>(
       1,
       (max, record) => record.id >= max ? record.id + 1 : max,
@@ -589,7 +589,7 @@ class _FeatureRecordCard extends StatelessWidget {
     final field = fields.where((field) => field.key == key).firstOrNull;
     final referencePath = field?.referencePath;
     if (referencePath != null) {
-      final records = AppScope.of(context).featureRecords(referencePath);
+      final records = AppScope.of(context).featureRecords.records(referencePath);
       final matches = records.where(
         (record) => _referenceValue(record, field!) == value.toString(),
       );
@@ -691,7 +691,7 @@ class _FeatureFormField extends StatelessWidget {
 
     final referencePath = field.referencePath;
     if (referencePath != null) {
-      final records = AppScope.of(context).featureRecords(referencePath);
+      final records = AppScope.of(context).featureRecords.records(referencePath);
       if (records.isNotEmpty) {
         String valueFor(FeatureRecord record) => _referenceValue(record, field);
         final current =

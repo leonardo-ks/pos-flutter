@@ -17,6 +17,7 @@ import '../shared/models/feature_record.dart';
 import '../shared/repositories/feature_repository.dart';
 import 'async_guard.dart';
 import 'controllers/customer_controller.dart';
+import 'controllers/feature_record_controller.dart';
 import 'controllers/navigation_controller.dart';
 import 'controllers/product_controller.dart';
 import 'controllers/session_controller.dart';
@@ -47,6 +48,12 @@ class AppController extends ChangeNotifier {
       _productRepository,
       initialItems: dataStore.products,
     );
+    featureRecords = FeatureRecordController(
+      _guard,
+      _featureRepository,
+      products: products,
+      onReportsInvalidated: () {},
+    );
     customers = CustomerController(
       _guard,
       _customerRepository,
@@ -55,6 +62,7 @@ class AppController extends ChangeNotifier {
     _transactions = List.unmodifiable(dataStore.transactions);
     _guard.addListener(notifyListeners);
     products.addListener(notifyListeners);
+    featureRecords.addListener(notifyListeners);
     customers.addListener(notifyListeners);
     // session must init before navigation: navigation's canView delegates to it.
     session.addListener(notifyListeners);
@@ -62,7 +70,7 @@ class AppController extends ChangeNotifier {
   }
 
   late final SessionController session = SessionController(
-    rolePermissionRecords: () => _featureRecords['/api/role-permissions'],
+    rolePermissionRecords: () => featureRecords.records('/api/role-permissions'),
   );
 
   late final NavigationController navigation = NavigationController(
@@ -96,6 +104,7 @@ class AppController extends ChangeNotifier {
   late final FeatureRepository _featureRepository;
 
   late final ProductController products;
+  late final FeatureRecordController featureRecords;
   late final CustomerController customers;
   final AsyncGuard _guard = AsyncGuard();
   ReportRange selectedReportRange = ReportRange.today;
@@ -113,15 +122,11 @@ class AppController extends ChangeNotifier {
   String selectedCombinedReportType = 'all';
   String selectedReturnReportType = 'all';
   SalesReport salesReport = SalesReport.empty();
-  String selectedGenericReport = 'purchases';
+  String get selectedGenericReport => featureRecords.selectedGenericReport;
   String selectedPaymentMethod = 'cash';
   double cashReceivedAmount = 0;
 
   List<SaleTransaction> _transactions = [];
-  final Map<String, List<FeatureRecord>> _featureRecords = {};
-  final Map<String, String> _featureQueryKeys = {};
-  final Map<String, String?> _featureNextCursors = {};
-  final Map<String, Future<void>> _featureLoadFutures = {};
   final Map<int, int> _cart = {};
   final Map<int, Product> _cartProducts = {};
   Future<void>? _refreshDataFuture;
@@ -172,13 +177,10 @@ class AppController extends ChangeNotifier {
     return cashReceivedAmount >= grandTotal;
   }
 
-  List<FeatureRecord> get customerGroupDiscounts =>
-      featureRecords('/api/customer-group-discounts');
-
   double discountRateForProduct(Product product, {Customer? customer}) {
     final effectiveCustomer = customer ?? customers.selected;
     if (effectiveCustomer == null || product.categoryId == null) return 0;
-    final match = customerGroupDiscounts.where(
+    final match = featureRecords.customerGroupDiscounts.where(
       (record) =>
           (record.values['customer_id'] as num?)?.toInt() ==
               effectiveCustomer.id &&
@@ -209,10 +211,10 @@ class AppController extends ChangeNotifier {
       selectedPaymentMethod = 'cash';
       cashReceivedAmount = 0;
       await refreshData();
-      await loadFeatureRecords('/api/product-categories');
-      await loadFeatureRecords('/api/suppliers');
-      await loadFeatureRecords('/api/customer-group-discounts');
-      await loadFeatureRecords('/api/role-permissions');
+      await featureRecords.load('/api/product-categories');
+      await featureRecords.load('/api/suppliers');
+      await featureRecords.load('/api/customer-group-discounts');
+      await featureRecords.load('/api/role-permissions');
       if (canManage) {
         await loadSalesReport(selectedReportRange);
         await loadGenericReport('all-transactions');
@@ -252,13 +254,9 @@ class AppController extends ChangeNotifier {
     selectedReturnReportSupplierId = null;
     selectedCombinedReportType = 'all';
     selectedReturnReportType = 'all';
-    selectedGenericReport = 'purchases';
     salesReport = SalesReport.empty();
     _transactions = const [];
-    _featureRecords.clear();
-    _featureQueryKeys.clear();
-    _featureNextCursors.clear();
-    _featureLoadFutures.clear();
+    featureRecords.reset();
     _refreshDataFuture = null;
     _cart.clear();
     _cartProducts.clear();
@@ -336,7 +334,7 @@ class AppController extends ChangeNotifier {
         user: currentUser!,
         customers: customers.items,
       );
-      _invalidateReports();
+      featureRecords.invalidateReports();
       _cart.clear();
       _cartProducts.clear();
       customers.select(null);
@@ -559,163 +557,23 @@ class AppController extends ChangeNotifier {
     return bytes;
   }
 
-  List<FeatureRecord> featureRecords(String path) {
-    return List.unmodifiable(_featureRecords[path] ?? const []);
-  }
-
-  bool canLoadMoreFeatureRecords(String path, {Map<String, String>? query}) {
-    if (_featureNextCursors[path] == null) return false;
-    if (query == null) return true;
-    return _featureQueryKeys[path] == _queryKey(query);
-  }
-
-  Future<void> loadFeatureRecords(
-    String path, {
-    Map<String, String>? query,
-    bool force = false,
-  }) async {
-    final cacheKey = _queryKey(query);
-    if (!force &&
-        _featureRecords.containsKey(path) &&
-        _featureQueryKeys[path] == cacheKey) {
-      return;
-    }
-
-    final loadKey = '$path?$cacheKey';
-    final existingLoad = _featureLoadFutures[loadKey];
-    if (existingLoad != null) {
-      await existingLoad;
-      return;
-    }
-
-    late Future<void> load;
-    load = _runBusy(() async {
-      final page = await _featureRepository.listPage(path, query: query);
-      _featureRecords[path] = page.rows;
-      _featureNextCursors[path] = page.nextCursor;
-      _featureQueryKeys[path] = cacheKey;
-    });
-    _featureLoadFutures[loadKey] = load;
-    try {
-      await load;
-    } finally {
-      _featureLoadFutures.remove(loadKey);
-    }
-  }
-
-  Future<void> loadMoreFeatureRecords(
-    String path, {
-    Map<String, String>? query,
-  }) async {
-    final cursor = _featureNextCursors[path];
-    if (cursor == null) return;
-    final nextQuery = {...?query, 'cursor': cursor};
-    final baseCacheKey = _queryKey(query);
-    final loadKey = '$path?more:${_queryKey(nextQuery)}';
-    final existingLoad = _featureLoadFutures[loadKey];
-    if (existingLoad != null) {
-      await existingLoad;
-      return;
-    }
-    late Future<void> load;
-    load = _runBusy(() async {
-      final page = await _featureRepository.listPage(path, query: nextQuery);
-      final current = _featureRecords[path] ?? const <FeatureRecord>[];
-      _featureRecords[path] = [...current, ...page.rows];
-      _featureNextCursors[path] = page.nextCursor;
-      _featureQueryKeys[path] = baseCacheKey;
-    });
-    _featureLoadFutures[loadKey] = load;
-    try {
-      await load;
-    } finally {
-      _featureLoadFutures.remove(loadKey);
-    }
-  }
-
-  Future<FeatureRecord?> saveFeatureRecord(
-    String path,
-    Map<String, Object?> body, {
-    int? id,
-  }) async {
-    FeatureRecord? saved;
-    await _runBusy(() async {
-      saved = await _featureRepository.save(path, body, id: id);
-      final page = await _featureRepository.listPage(path);
-      _featureRecords[path] = page.rows;
-      _featureNextCursors[path] = page.nextCursor;
-      _featureQueryKeys[path] = _queryKey(null);
-      if (path.contains('purchases') ||
-          path.contains('returns') ||
-          path == '/api/stock' ||
-          path == '/api/cash-entries') {
-        await products.reload();
-        _invalidateReports();
-      }
-    });
-    return saved;
-  }
-
-  Future<void> saveCustomerGroupDiscounts(
-    List<Map<String, Object?>> items, {
-    List<int> deleteIds = const [],
-  }) async {
-    await _runBusy(() async {
-      await _featureRepository.saveBatch(
-        '/api/customer-group-discounts',
-        items,
-        deleteIds: deleteIds,
-      );
-      final page = await _featureRepository.listPage(
-        '/api/customer-group-discounts',
-      );
-      _featureRecords['/api/customer-group-discounts'] = page.rows;
-      _featureNextCursors['/api/customer-group-discounts'] = page.nextCursor;
-      _featureQueryKeys['/api/customer-group-discounts'] = _queryKey(null);
-    });
-  }
-
-  Future<void> deleteFeatureRecord(String path, FeatureRecord record) async {
-    await _runBusy(() async {
-      await _featureRepository.delete(path, record.id);
-      final page = await _featureRepository.listPage(path);
-      _featureRecords[path] = page.rows;
-      _featureNextCursors[path] = page.nextCursor;
-      _featureQueryKeys[path] = _queryKey(null);
-      _invalidateReports();
-    });
-  }
-
-  Future<List<FeatureRecord>> loadGenericReport(
-    String kind, {
-    String? search,
-  }) async {
-    selectedGenericReport = kind;
-    final path = '/api/reports/$kind';
-    await loadFeatureRecords(
-      path,
-      query: _reportQuery(kind: kind, search: search),
-    );
-    return featureRecords(path);
-  }
-
-  Future<void> loadMoreGenericReport(String kind, {String? search}) async {
-    await loadMoreFeatureRecords(
-      '/api/reports/$kind',
-      query: _reportQuery(kind: kind, search: search),
-    );
-  }
-
-  Future<List<int>?> exportGenericReport(String kind, {String? search}) async {
-    List<int>? bytes;
-    await _runBusy(() async {
-      bytes = await _featureRepository.exportReport(
+  Future<List<FeatureRecord>> loadGenericReport(String kind, {String? search}) =>
+      featureRecords.loadGenericReport(
         kind,
         _reportQuery(kind: kind, search: search),
       );
-    });
-    return bytes;
-  }
+
+  Future<void> loadMoreGenericReport(String kind, {String? search}) =>
+      featureRecords.loadMoreGenericReport(
+        kind,
+        _reportQuery(kind: kind, search: search),
+      );
+
+  Future<List<int>?> exportGenericReport(String kind, {String? search}) =>
+      featureRecords.exportGenericReport(
+        kind,
+        _reportQuery(kind: kind, search: search),
+      );
 
   Map<String, String> reportQueryFor(String kind, {String? search}) =>
       _reportQuery(kind: kind, search: search);
@@ -796,23 +654,6 @@ class AppController extends ChangeNotifier {
     return null;
   }
 
-  String _queryKey(Map<String, String>? query) {
-    if (query == null || query.isEmpty) return '';
-    final keys = query.keys.toList()..sort();
-    return keys.map((key) => '$key=${query[key]}').join('&');
-  }
-
-  void _invalidateReports() {
-    final reportPaths = _featureRecords.keys
-        .where((path) => path.startsWith('/api/reports/'))
-        .toList(growable: false);
-    for (final path in reportPaths) {
-      _featureRecords.remove(path);
-      _featureQueryKeys.remove(path);
-      _featureNextCursors.remove(path);
-    }
-  }
-
   Future<void> _runBusy(Future<void> Function() action) => _guard.run(action);
 
   @override
@@ -821,6 +662,8 @@ class AppController extends ChangeNotifier {
     _guard.dispose();
     products.removeListener(notifyListeners);
     products.dispose();
+    featureRecords.removeListener(notifyListeners);
+    featureRecords.dispose();
     customers.removeListener(notifyListeners);
     customers.dispose();
     session.removeListener(notifyListeners);

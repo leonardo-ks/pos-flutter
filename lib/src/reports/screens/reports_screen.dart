@@ -84,7 +84,7 @@ class _GenericReportTabState extends State<_GenericReportTab> {
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
     final path = '/api/reports/${widget.tab.$1}';
-    final rows = controller.featureRecords(path);
+    final rows = controller.featureRecords.records(path);
 
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
@@ -179,7 +179,7 @@ class _GenericReportTabState extends State<_GenericReportTab> {
               sliver: SliverList.separated(
                 itemCount:
                     rows.length +
-                    (controller.canLoadMoreFeatureRecords(
+                    (controller.featureRecords.canLoadMore(
                           path,
                           query: controller.reportQueryFor(
                             widget.tab.$1,
@@ -708,7 +708,7 @@ class _ReportControls extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final narrow = constraints.maxWidth < 760;
-        final categories = controller.featureRecords('/api/product-categories');
+        final categories = controller.featureRecords.records('/api/product-categories');
         final selectedCategoryId =
             categories.any(
               (category) =>
@@ -735,7 +735,7 @@ class _ReportControls extends StatelessWidget {
             )
             ? controller.selectedReportCustomerIdFor(reportKind)!
             : 0;
-        final suppliers = controller.featureRecords('/api/suppliers');
+        final suppliers = controller.featureRecords.records('/api/suppliers');
         final selectedSupplierId =
             suppliers.any(
               (supplier) =>

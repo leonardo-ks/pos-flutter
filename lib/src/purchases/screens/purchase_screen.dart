@@ -38,9 +38,9 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
     _loaded = true;
     final controller = AppScope.of(context);
     Future.microtask(() async {
-      await controller.loadFeatureRecords('/api/suppliers');
-      await controller.loadFeatureRecords('/api/product-categories');
-      await controller.loadFeatureRecords('/api/purchases');
+      await controller.featureRecords.load('/api/suppliers');
+      await controller.featureRecords.load('/api/product-categories');
+      await controller.featureRecords.load('/api/purchases');
       await controller.refreshData();
     });
   }
@@ -48,7 +48,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final purchases = controller.featureRecords('/api/purchases');
+    final purchases = controller.featureRecords.records('/api/purchases');
     final canCreate = controller.session.canCreateMenu('purchases');
     final canUpdate = controller.session.canUpdateMenu('purchases');
     final canDelete = controller.session.canDeleteMenu('purchases');
@@ -64,7 +64,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                   controller: _searchController,
                   onChanged: (value) {
                     setState(() => _query = value);
-                    controller.loadFeatureRecords(
+                    controller.featureRecords.load(
                       '/api/purchases',
                       query: _purchaseQuery(search: value),
                       force: true,
@@ -80,7 +80,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                             onPressed: () {
                               _searchController.clear();
                               setState(() => _query = '');
-                              controller.loadFeatureRecords(
+                              controller.featureRecords.load(
                                 '/api/purchases',
                                 query: _purchaseQuery(search: ''),
                                 force: true,
@@ -115,8 +115,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final narrow = constraints.maxWidth < 720;
-              final suppliers = controller.featureRecords('/api/suppliers');
-              final categories = controller.featureRecords(
+              final suppliers = controller.featureRecords.records('/api/suppliers');
+              final categories = controller.featureRecords.records(
                 '/api/product-categories',
               );
               final products = controller.products.items
@@ -257,7 +257,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                   padding: const EdgeInsets.all(16),
                   itemCount:
                       purchases.length +
-                      (controller.canLoadMoreFeatureRecords(
+                      (controller.featureRecords.canLoadMore(
                             '/api/purchases',
                             query: _purchaseQuery(),
                           )
@@ -273,7 +273,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                           child: OutlinedButton.icon(
                             onPressed: controller.isBusy
                                 ? null
-                                : () => controller.loadMoreFeatureRecords(
+                                : () => controller.featureRecords.loadMore(
                                     '/api/purchases',
                                     query: _purchaseQuery(),
                                   ),
@@ -333,7 +333,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   }
 
   Future<void> _loadPurchases() {
-    return AppScope.of(context).loadFeatureRecords(
+    return AppScope.of(context).featureRecords.load(
       '/api/purchases',
       query: _purchaseQuery(),
       force: true,
@@ -387,7 +387,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
       ),
     );
     if (confirmed == true) {
-      await controller.deleteFeatureRecord('/api/purchases', record);
+      await controller.featureRecords.remove('/api/purchases', record);
       if (mounted) await _loadPurchases();
     }
   }
@@ -654,7 +654,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final suppliers = controller.featureRecords('/api/suppliers');
+    final suppliers = controller.featureRecords.records('/api/suppliers');
     final products = controller.products.items;
     _supplierId ??= suppliers.isEmpty ? null : suppliers.first.id;
 
@@ -767,7 +767,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
       return;
     }
 
-    await controller.saveFeatureRecord('/api/purchases', {
+    await controller.featureRecords.save('/api/purchases', {
       'supplier_id': _supplierId,
       'items': items,
       'paid_amount': double.tryParse(_paid.text.trim()) ?? _total,

@@ -28,10 +28,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
       _loadedFeatureData = true;
       final controller = AppScope.of(context);
       Future.microtask(() async {
-        await controller.loadFeatureRecords('/api/stock');
-        await controller.loadFeatureRecords('/api/locations');
-        await controller.loadFeatureRecords('/api/product-categories');
-        await controller.loadFeatureRecords('/api/suppliers');
+        await controller.featureRecords.load('/api/stock');
+        await controller.featureRecords.load('/api/locations');
+        await controller.featureRecords.load('/api/product-categories');
+        await controller.featureRecords.load('/api/suppliers');
       });
     }
   }
@@ -49,7 +49,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final canUpdate = controller.session.canUpdateMenu('inventory');
     final canDelete = controller.session.canDeleteMenu('inventory');
     final products = controller.products.items;
-    final stockRecords = controller.featureRecords('/api/stock');
+    final stockRecords = controller.featureRecords.records('/api/stock');
 
     return DefaultTabController(
       length: 3,
@@ -130,10 +130,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                         child: LayoutBuilder(
                           builder: (context, constraints) {
-                            final categories = controller.featureRecords(
+                            final categories = controller.featureRecords.records(
                               '/api/product-categories',
                             );
-                            final locations = controller.featureRecords(
+                            final locations = controller.featureRecords.records(
                               '/api/locations',
                             );
                             final compact = constraints.maxWidth < 820;
@@ -375,7 +375,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final categoryId = TextEditingController(
       text: product?.categoryId?.toString() ?? '',
     );
-    final locations = controller.featureRecords('/api/locations');
+    final locations = controller.featureRecords.records('/api/locations');
     final draftStocks = <_DraftLocationStock>[];
 
     await showDialog<void>(
@@ -451,14 +451,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       _ReferenceDropdown(
                         controller: supplierId,
                         label: 'Suplier',
-                        records: controller.featureRecords('/api/suppliers'),
+                        records: controller.featureRecords.records('/api/suppliers'),
                         labelKeys: const ['nama', 'kode'],
                       ),
                       const SizedBox(height: 10),
                       _ReferenceDropdown(
                         controller: categoryId,
                         label: 'Grup Produk',
-                        records: controller.featureRecords(
+                        records: controller.featureRecords.records(
                           '/api/product-categories',
                         ),
                         labelKeys: const ['nama', 'kode'],
@@ -546,7 +546,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     ? totalStock
                     : _stocksForProduct(
                         product,
-                        controller.featureRecords('/api/stock'),
+                        controller.featureRecords.records('/api/stock'),
                       ).fold<int>(
                         0,
                         (total, record) =>
@@ -572,13 +572,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 if (product == null && saved != null) {
                   for (final entry in stockByLocation.entries) {
                     if (entry.value <= 0) continue;
-                    await controller.saveFeatureRecord('/api/stock', {
+                    await controller.featureRecords.save('/api/stock', {
                       'product_id': saved.id,
                       'location_id': entry.key,
                       'stock': entry.value,
                     });
                   }
-                  await controller.loadFeatureRecords('/api/stock');
+                  await controller.featureRecords.load('/api/stock');
                 }
                 if (dialogContext.mounted) Navigator.of(dialogContext).pop();
               },
@@ -612,7 +612,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
             final latestStocks =
                 _stocksForProduct(
                       latestProduct,
-                      controller.featureRecords('/api/stock'),
+                      controller.featureRecords.records('/api/stock'),
                     )
                     .where((stock) {
                       if (selectedLocationId == null) return true;
@@ -730,7 +730,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         .whereType<int>()
         .toSet();
     final locations = controller
-        .featureRecords('/api/locations')
+        .featureRecords.records('/api/locations')
         .where((location) => !usedLocationIds.contains(location.id))
         .toList(growable: false);
     final locationController = TextEditingController(
@@ -877,12 +877,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
     required int stock,
   }) async {
     final controller = AppScope.of(context);
-    await controller.saveFeatureRecord('/api/stock', {
+    await controller.featureRecords.save('/api/stock', {
       'product_id': productId,
       'location_id': locationId,
       'stock': stock,
     });
-    await controller.loadFeatureRecords('/api/stock');
+    await controller.featureRecords.load('/api/stock');
   }
 }
 
@@ -1157,7 +1157,7 @@ class _ProductStockEditor extends StatelessWidget {
             product;
         final stocks = stocksForProduct(
           latestProduct,
-          controller.featureRecords('/api/stock'),
+          controller.featureRecords.records('/api/stock'),
         );
         final visibleStocks = stocks.where(hasStock).toList(growable: false);
         return Column(

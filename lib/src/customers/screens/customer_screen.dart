@@ -34,8 +34,8 @@ class _CustomerScreenState extends State<CustomerScreen> {
       _loadedDiscounts = true;
       final controller = AppScope.of(context);
       Future.microtask(() async {
-        await controller.loadFeatureRecords('/api/product-categories');
-        await controller.loadFeatureRecords('/api/customer-group-discounts');
+        await controller.featureRecords.load('/api/product-categories');
+        await controller.featureRecords.load('/api/customer-group-discounts');
       });
     }
   }
@@ -377,7 +377,7 @@ class _CustomerDiscountTabState extends State<_CustomerDiscountTab> {
     final controller = AppScope.of(context);
     final customers = controller.customers.items
         .where((customer) {
-          final hasDiscount = controller.customerGroupDiscounts.any(
+          final hasDiscount = controller.featureRecords.customerGroupDiscounts.any(
             (record) =>
                 (record.values['customer_id'] as num?)?.toInt() == customer.id,
           );
@@ -463,7 +463,7 @@ class _CustomerDiscountTabState extends State<_CustomerDiscountTab> {
                       );
                     }
                     final customer = customers[index];
-                    final discountCount = controller.customerGroupDiscounts
+                    final discountCount = controller.featureRecords.customerGroupDiscounts
                         .where(
                           (record) =>
                               (record.values['customer_id'] as num?)?.toInt() ==
@@ -531,7 +531,7 @@ class _CustomerDiscountDialogState extends State<_CustomerDiscountDialog> {
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
     final customers = controller.customers.items;
-    final categories = controller.featureRecords('/api/product-categories');
+    final categories = controller.featureRecords.records('/api/product-categories');
     _syncDrafts(controller);
 
     return AlertDialog(
@@ -641,7 +641,7 @@ class _CustomerDiscountDialogState extends State<_CustomerDiscountDialog> {
   void _syncDrafts(AppController controller) {
     final customerId = _customerId;
     if (customerId == null || _loadedCustomerId == customerId) return;
-    final records = controller.customerGroupDiscounts
+    final records = controller.featureRecords.customerGroupDiscounts
         .where(
           (record) =>
               (record.values['customer_id'] as num?)?.toInt() == customerId,
@@ -746,7 +746,7 @@ class _CustomerDiscountDialogState extends State<_CustomerDiscountDialog> {
     final customerId = _customerId;
     if (customerId == null) return;
     final controller = AppScope.of(context);
-    await controller.saveCustomerGroupDiscounts([
+    await controller.featureRecords.saveCustomerGroupDiscounts([
       for (final draft in _drafts)
         {
           'id': draft.id,

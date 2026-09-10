@@ -71,15 +71,15 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
     _loaded = true;
     final controller = AppScope.of(context);
     Future.microtask(() async {
-      await controller.loadFeatureRecords('/api/roles');
-      await controller.loadFeatureRecords('/api/role-permissions');
+      await controller.featureRecords.load('/api/roles');
+      await controller.featureRecords.load('/api/role-permissions');
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final permissions = controller.featureRecords('/api/role-permissions');
+    final permissions = controller.featureRecords.records('/api/role-permissions');
     final roles = _roleOptions(controller);
 
     return Column(
@@ -124,7 +124,7 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
   }
 
   List<(String, String)> _roleOptions(AppController controller) {
-    final records = controller.featureRecords('/api/roles');
+    final records = controller.featureRecords.records('/api/roles');
     if (records.isNotEmpty) {
       return records
           .map(
@@ -156,7 +156,7 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
     final permissions = {
       for (final record
           in controller
-              .featureRecords('/api/role-permissions')
+              .featureRecords.records('/api/role-permissions')
               .where(
                 (record) =>
                     record.values['role'] == role.$1 &&
@@ -197,7 +197,7 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
             FilledButton(
               onPressed: () async {
                 for (final draft in permissions.values) {
-                  await controller.saveFeatureRecord(
+                  await controller.featureRecords.save(
                     '/api/role-permissions',
                     draft.toBody(),
                     id: draft.id,
