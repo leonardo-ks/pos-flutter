@@ -13,37 +13,37 @@ void main() {
   });
 
   test('reportRangeFor dispatches on kind', () async {
-    await c.setReportRange(ReportRange.week, kind: 'all-transactions');
-    await c.setReportRange(ReportRange.month, kind: 'returns');
-    expect(c.reportRangeFor('all-transactions'), ReportRange.week);
-    expect(c.reportRangeFor('returns'), ReportRange.month);
+    await c.reports.setRange(ReportRange.week, kind: 'all-transactions');
+    await c.reports.setRange(ReportRange.month, kind: 'returns');
+    expect(c.reports.reportRangeFor('all-transactions'), ReportRange.week);
+    expect(c.reports.reportRangeFor('returns'), ReportRange.month);
   });
 
   test('setCustomReportRange snaps to a matching quick range', () async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    await c.setCustomReportRange(
+    await c.reports.setCustomRange(
       DateTimeRange(start: today, end: today),
       kind: 'all-transactions',
     );
-    expect(c.reportRangeFor('all-transactions'), ReportRange.today);
+    expect(c.reports.reportRangeFor('all-transactions'), ReportRange.today);
   });
 
   test('reportQueryFor includes type when not "all"', () async {
-    await c.setCombinedReportType('penjualan');
-    final q = c.reportQueryFor('all-transactions');
+    await c.reports.setCombinedType('penjualan');
+    final q = c.reports.reportQuery(kind: 'all-transactions');
     expect(q['type'], 'penjualan');
   });
 
   test('reportQueryFor omits type when "all"', () async {
-    final q = c.reportQueryFor('all-transactions');
+    final q = c.reports.reportQuery(kind: 'all-transactions');
     expect(q.containsKey('type'), isFalse);
   });
 
   test('setCombinedReportType clears customer + supplier filter', () async {
-    await c.setReportCustomerFilter(5);
-    await c.setCombinedReportType('pembelian');
-    expect(c.selectedReportCustomerIdFor('all-transactions'), isNull);
-    expect(c.selectedReportSupplierIdFor('all-transactions'), isNull);
+    await c.reports.setCustomerFilter(5);
+    await c.reports.setCombinedType('pembelian');
+    expect(c.reports.filterFor('all-transactions').customerId, isNull);
+    expect(c.reports.filterFor('all-transactions').supplierId, isNull);
   });
 }

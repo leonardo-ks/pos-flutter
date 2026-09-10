@@ -61,7 +61,7 @@ void main() {
     await tester.tap(find.byKey(const Key('login-submit')));
     await tester.pumpAndSettle();
 
-    final initialTransactions = controller.transactions.length;
+    final initialTransactions = controller.reports.transactions.length;
     final initialStock = controller.products.items.first.stock;
 
     await tester.tap(find.byKey(const Key('add-product-1')));
@@ -75,7 +75,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Transaksi Berhasil'), findsOneWidget);
-    expect(controller.transactions.length, initialTransactions + 1);
+    expect(controller.reports.transactions.length, initialTransactions + 1);
     expect(controller.products.items.first.stock, initialStock - 1);
   });
 }

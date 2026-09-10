@@ -16,7 +16,7 @@ void main() {
     final c = AppController();
     await c.loginAsRoleForTest(UserRole.manager);
     c.addToCart(c.products.items.first);
-    await c.setReportRange(ReportRange.week, kind: 'all-transactions');
+    await c.reports.setRange(ReportRange.week, kind: 'all-transactions');
     c.logout();
 
     expect(c.isLoggedIn, isFalse);
@@ -24,7 +24,7 @@ void main() {
     expect(c.cartLines, isEmpty);
     expect(c.customers.selected, isNull);
     expect(c.products.search, '');
-    expect(c.selectedReportRange, ReportRange.today);
+    expect(c.reports.report.range, ReportRange.today);
     expect(c.selectedGenericReport, 'purchases');
     expect(c.errorMessage, isNull);
   });

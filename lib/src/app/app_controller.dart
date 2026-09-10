@@ -8,7 +8,6 @@ import '../inventory/models/product.dart';
 import '../inventory/repositories/product_repository.dart';
 import '../pos/models/cart_line.dart';
 import '../reports/models/sale_transaction.dart';
-import '../reports/models/sales_report.dart';
 import '../reports/repositories/report_repository.dart';
 import '../reports/repositories/transaction_repository.dart';
 import '../shared/api/api_client.dart';
@@ -20,6 +19,7 @@ import 'controllers/customer_controller.dart';
 import 'controllers/feature_record_controller.dart';
 import 'controllers/navigation_controller.dart';
 import 'controllers/product_controller.dart';
+import 'controllers/report_controller.dart';
 import 'controllers/session_controller.dart';
 
 enum AppSection { pos, purchases, returns, reports, master, users }
@@ -59,11 +59,27 @@ class AppController extends ChangeNotifier {
       _customerRepository,
       initialItems: dataStore.customers,
     );
-    _transactions = List.unmodifiable(dataStore.transactions);
+    reports = ReportController(
+      _guard,
+      _reportRepository,
+      _transactionRepository,
+      canManage: () => session.canManage,
+      customers: () => customers.items,
+      loadGenericReport: (kind, {search}) => featureRecords.loadGenericReport(
+        kind,
+        reports.reportQuery(kind: kind, search: search),
+      ),
+      loadMoreGenericReport: (kind, {search}) =>
+          featureRecords.loadMoreGenericReport(
+            kind,
+            reports.reportQuery(kind: kind, search: search),
+          ),
+    );
     _guard.addListener(notifyListeners);
     products.addListener(notifyListeners);
     featureRecords.addListener(notifyListeners);
     customers.addListener(notifyListeners);
+    reports.addListener(notifyListeners);
     // session must init before navigation: navigation's canView delegates to it.
     session.addListener(notifyListeners);
     navigation.addListener(notifyListeners);
@@ -77,7 +93,7 @@ class AppController extends ChangeNotifier {
     canView: canViewSection,
     onEnterSection: (section) {
       if (section == AppSection.reports && canManage) {
-        loadSalesReport(selectedReportRange);
+        reports.loadSalesReport(reports.report.range);
         loadGenericReport('all-transactions');
         loadGenericReport('returns');
       }
@@ -106,27 +122,12 @@ class AppController extends ChangeNotifier {
   late final ProductController products;
   late final FeatureRecordController featureRecords;
   late final CustomerController customers;
+  late final ReportController reports;
   final AsyncGuard _guard = AsyncGuard();
-  ReportRange selectedReportRange = ReportRange.today;
-  DateTimeRange? customReportRange;
-  int? selectedReportProductId;
-  int? selectedReportCategoryId;
-  int? selectedReportCustomerId;
-  int? selectedReportSupplierId;
-  ReportRange selectedReturnReportRange = ReportRange.today;
-  DateTimeRange? customReturnReportRange;
-  int? selectedReturnReportProductId;
-  int? selectedReturnReportCategoryId;
-  int? selectedReturnReportCustomerId;
-  int? selectedReturnReportSupplierId;
-  String selectedCombinedReportType = 'all';
-  String selectedReturnReportType = 'all';
-  SalesReport salesReport = SalesReport.empty();
   String get selectedGenericReport => featureRecords.selectedGenericReport;
   String selectedPaymentMethod = 'cash';
   double cashReceivedAmount = 0;
 
-  List<SaleTransaction> _transactions = [];
   final Map<int, int> _cart = {};
   final Map<int, Product> _cartProducts = {};
   Future<void>? _refreshDataFuture;
@@ -140,8 +141,6 @@ class AppController extends ChangeNotifier {
   bool canViewSection(AppSection s) => session.canViewSection(s);
 
   AppSection get selectedSection => navigation.selectedSection;
-
-  List<SaleTransaction> get transactions => List.unmodifiable(_transactions);
 
   List<CartLine> get cartLines {
     return _cart.entries
@@ -216,7 +215,7 @@ class AppController extends ChangeNotifier {
       await featureRecords.load('/api/customer-group-discounts');
       await featureRecords.load('/api/role-permissions');
       if (canManage) {
-        await loadSalesReport(selectedReportRange);
+        await reports.loadSalesReport(reports.report.range);
         await loadGenericReport('all-transactions');
         await loadGenericReport('returns');
       }
@@ -240,22 +239,7 @@ class AppController extends ChangeNotifier {
     customers.reset();
     products.reset();
     _guard.clearError();
-    selectedReportRange = ReportRange.today;
-    customReportRange = null;
-    selectedReportProductId = null;
-    selectedReportCategoryId = null;
-    selectedReportCustomerId = null;
-    selectedReportSupplierId = null;
-    selectedReturnReportRange = ReportRange.today;
-    customReturnReportRange = null;
-    selectedReturnReportProductId = null;
-    selectedReturnReportCategoryId = null;
-    selectedReturnReportCustomerId = null;
-    selectedReturnReportSupplierId = null;
-    selectedCombinedReportType = 'all';
-    selectedReturnReportType = 'all';
-    salesReport = SalesReport.empty();
-    _transactions = const [];
+    reports.reset();
     featureRecords.reset();
     _refreshDataFuture = null;
     _cart.clear();
@@ -330,25 +314,13 @@ class AppController extends ChangeNotifier {
       );
       await products.reload();
       await customers.reload();
-      _transactions = await _transactionRepository.fetchTransactions(
-        user: currentUser!,
-        customers: customers.items,
-      );
+      await reports.refetchTransactions(session.currentUser!);
       featureRecords.invalidateReports();
       _cart.clear();
       _cartProducts.clear();
       customers.select(null);
       cashReceivedAmount = 0;
-      if (canManage) {
-        salesReport = await _reportRepository.fetchSalesReport(
-          selectedReportRange,
-          from: customReportRange?.start,
-          to: _exclusiveEnd(customReportRange?.end),
-          productId: selectedReportProductId,
-          categoryId: selectedReportCategoryId,
-          customerId: selectedReportCustomerId,
-        );
-      }
+      await reports.refetchSalesReportIfManager();
     });
     return transaction;
   }
@@ -363,10 +335,7 @@ class AppController extends ChangeNotifier {
     final refresh = () async {
       await products.reload();
       await customers.reload();
-      _transactions = await _transactionRepository.fetchTransactions(
-        user: currentUser!,
-        customers: customers.items,
-      );
+      await reports.refetchTransactions(session.currentUser!);
     }();
     _refreshDataFuture = refresh;
     try {
@@ -376,283 +345,23 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<void> loadSalesReport(ReportRange range) async {
-    if (!canManage) return;
-    selectedReportRange = range;
-    await _runBusy(() async {
-      salesReport = await _reportRepository.fetchSalesReport(
-        range,
-        from: customReportRange?.start,
-        to: _exclusiveEnd(customReportRange?.end),
-        productId: selectedReportProductId,
-        categoryId: selectedReportCategoryId,
-        customerId: selectedReportCustomerId,
-      );
-    });
-  }
-
-  ReportRange reportRangeFor(String kind) {
-    return kind == 'returns' ? selectedReturnReportRange : selectedReportRange;
-  }
-
-  DateTimeRange? customReportRangeFor(String kind) {
-    final range = reportRangeFor(kind);
-    if (range == ReportRange.custom) {
-      return kind == 'returns' ? customReturnReportRange : customReportRange;
-    }
-    return _quickDateRange(range);
-  }
-
-  int? selectedReportProductIdFor(String kind) {
-    return kind == 'returns'
-        ? selectedReturnReportProductId
-        : selectedReportProductId;
-  }
-
-  int? selectedReportCategoryIdFor(String kind) {
-    return kind == 'returns'
-        ? selectedReturnReportCategoryId
-        : selectedReportCategoryId;
-  }
-
-  int? selectedReportCustomerIdFor(String kind) {
-    return kind == 'returns'
-        ? selectedReturnReportCustomerId
-        : selectedReportCustomerId;
-  }
-
-  int? selectedReportSupplierIdFor(String kind) {
-    return kind == 'returns'
-        ? selectedReturnReportSupplierId
-        : selectedReportSupplierId;
-  }
-
-  String selectedReportTypeFor(String kind) {
-    return kind == 'returns'
-        ? selectedReturnReportType
-        : selectedCombinedReportType;
-  }
-
-  Future<void> setReportRange(ReportRange range, {required String kind}) async {
-    if (kind == 'returns') {
-      selectedReturnReportRange = range;
-      if (range != ReportRange.custom) customReturnReportRange = null;
-      await loadGenericReport('returns');
-      return;
-    }
-    selectedReportRange = range;
-    if (range != ReportRange.custom) customReportRange = null;
-    await loadSalesReport(range);
-    await loadGenericReport('all-transactions');
-  }
-
-  Future<void> setCustomReportRange(
-    DateTimeRange range, {
-    String kind = 'all-transactions',
-  }) async {
-    final matchedRange = _matchingQuickRange(range);
-    if (kind == 'returns') {
-      selectedReturnReportRange = matchedRange ?? ReportRange.custom;
-      customReturnReportRange = matchedRange == null ? range : null;
-      await loadGenericReport('returns');
-      return;
-    }
-    selectedReportRange = matchedRange ?? ReportRange.custom;
-    customReportRange = matchedRange == null ? range : null;
-    await loadSalesReport(selectedReportRange);
-    await loadGenericReport('all-transactions');
-  }
-
-  Future<void> setReportProductFilter(
-    int? productId, {
-    String kind = 'all-transactions',
-  }) async {
-    if (kind == 'returns') {
-      selectedReturnReportProductId = productId;
-      notifyListeners();
-      await loadGenericReport('returns');
-      return;
-    }
-    selectedReportProductId = productId;
-    notifyListeners();
-    await loadSalesReport(selectedReportRange);
-    await loadGenericReport('all-transactions');
-  }
-
-  Future<void> setReportCategoryFilter(
-    int? categoryId, {
-    String kind = 'all-transactions',
-  }) async {
-    if (kind == 'returns') {
-      selectedReturnReportCategoryId = categoryId;
-      notifyListeners();
-      await loadGenericReport('returns');
-      return;
-    }
-    selectedReportCategoryId = categoryId;
-    notifyListeners();
-    await loadSalesReport(selectedReportRange);
-    await loadGenericReport('all-transactions');
-  }
-
-  Future<void> setReportCustomerFilter(
-    int? customerId, {
-    String kind = 'all-transactions',
-  }) async {
-    if (kind == 'returns') {
-      selectedReturnReportCustomerId = customerId;
-      notifyListeners();
-      await loadGenericReport('returns');
-      return;
-    }
-    selectedReportCustomerId = customerId;
-    notifyListeners();
-    await loadSalesReport(selectedReportRange);
-    await loadGenericReport('all-transactions');
-  }
-
-  Future<void> setReportSupplierFilter(
-    int? supplierId, {
-    String kind = 'all-transactions',
-  }) async {
-    if (kind == 'returns') {
-      selectedReturnReportSupplierId = supplierId;
-      notifyListeners();
-      await loadGenericReport('returns');
-      return;
-    }
-    selectedReportSupplierId = supplierId;
-    notifyListeners();
-    await loadGenericReport('all-transactions');
-  }
-
-  Future<void> setCombinedReportType(String type) async {
-    selectedCombinedReportType = type;
-    selectedReportCustomerId = null;
-    selectedReportSupplierId = null;
-    notifyListeners();
-    await loadGenericReport('all-transactions');
-  }
-
-  Future<void> setReturnReportType(String type) async {
-    selectedReturnReportType = type;
-    selectedReturnReportCustomerId = null;
-    selectedReturnReportSupplierId = null;
-    notifyListeners();
-    await loadGenericReport('returns');
-  }
-
-  Future<List<int>?> exportSalesReport() async {
-    List<int>? bytes;
-    await _runBusy(() async {
-      bytes = await _reportRepository.exportSalesReport(
-        range: selectedReportRange,
-        from: customReportRange?.start,
-        to: _exclusiveEnd(customReportRange?.end),
-        productId: selectedReportProductId,
-        categoryId: selectedReportCategoryId,
-        customerId: selectedReportCustomerId,
-      );
-    });
-    return bytes;
-  }
-
   Future<List<FeatureRecord>> loadGenericReport(String kind, {String? search}) =>
       featureRecords.loadGenericReport(
         kind,
-        _reportQuery(kind: kind, search: search),
+        reports.reportQuery(kind: kind, search: search),
       );
 
   Future<void> loadMoreGenericReport(String kind, {String? search}) =>
       featureRecords.loadMoreGenericReport(
         kind,
-        _reportQuery(kind: kind, search: search),
+        reports.reportQuery(kind: kind, search: search),
       );
 
   Future<List<int>?> exportGenericReport(String kind, {String? search}) =>
       featureRecords.exportGenericReport(
         kind,
-        _reportQuery(kind: kind, search: search),
+        reports.reportQuery(kind: kind, search: search),
       );
-
-  Map<String, String> reportQueryFor(String kind, {String? search}) =>
-      _reportQuery(kind: kind, search: search);
-
-  Map<String, String> _reportQuery({String? kind, String? search}) {
-    final reportKind = kind ?? 'all-transactions';
-    final range = reportRangeFor(reportKind);
-    final customRange = customReportRangeFor(reportKind);
-    final type = selectedReportTypeFor(reportKind);
-    final categoryId = selectedReportCategoryIdFor(reportKind);
-    final productId = categoryId == null
-        ? null
-        : selectedReportProductIdFor(reportKind);
-    final isSalesType = type == 'penjualan' || type == 'retur penjualan';
-    final isPurchaseType = type == 'pembelian' || type == 'retur pembelian';
-    final rangeQuery = _reportRepository.rangeQuery(
-      range,
-      from: customRange?.start,
-      to: _exclusiveEnd(customRange?.end),
-      productId: productId,
-      categoryId: categoryId,
-      customerId: isSalesType ? selectedReportCustomerIdFor(reportKind) : null,
-    );
-    if (type != 'all') {
-      rangeQuery['type'] = type;
-    }
-    final supplierId = isPurchaseType
-        ? selectedReportSupplierIdFor(reportKind)
-        : null;
-    if (supplierId != null) {
-      rangeQuery['supplier_id'] = supplierId.toString();
-    }
-    final searchText = search?.trim();
-    if (searchText != null && searchText.isNotEmpty) {
-      rangeQuery['search'] = searchText;
-    }
-    return rangeQuery;
-  }
-
-  DateTime? _exclusiveEnd(DateTime? date) {
-    if (date == null) return null;
-    return DateTime(date.year, date.month, date.day + 1);
-  }
-
-  DateTimeRange? _quickDateRange(ReportRange range) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    return switch (range) {
-      ReportRange.today => DateTimeRange(start: today, end: today),
-      ReportRange.week => DateTimeRange(
-        start: today.subtract(Duration(days: today.weekday - 1)),
-        end: today,
-      ),
-      ReportRange.month => DateTimeRange(
-        start: DateTime(today.year, today.month),
-        end: DateTime(today.year, today.month + 1, 0),
-      ),
-      ReportRange.custom || ReportRange.all => null,
-    };
-  }
-
-  ReportRange? _matchingQuickRange(DateTimeRange range) {
-    final start = DateTime(
-      range.start.year,
-      range.start.month,
-      range.start.day,
-    );
-    final end = DateTime(range.end.year, range.end.month, range.end.day);
-    for (final candidate in [
-      ReportRange.today,
-      ReportRange.week,
-      ReportRange.month,
-    ]) {
-      final quick = _quickDateRange(candidate);
-      if (quick == null) continue;
-      if (quick.start == start && quick.end == end) return candidate;
-    }
-    return null;
-  }
 
   Future<void> _runBusy(Future<void> Function() action) => _guard.run(action);
 
@@ -666,6 +375,8 @@ class AppController extends ChangeNotifier {
     featureRecords.dispose();
     customers.removeListener(notifyListeners);
     customers.dispose();
+    reports.removeListener(notifyListeners);
+    reports.dispose();
     session.removeListener(notifyListeners);
     session.dispose();
     navigation.removeListener(notifyListeners);
