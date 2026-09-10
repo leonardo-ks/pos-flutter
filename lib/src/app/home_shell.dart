@@ -21,7 +21,7 @@ class HomeShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final sections = controller.availableSections;
+    final sections = controller.session.availableSections;
     final activeSection =
         sections.contains(controller.navigation.selectedSection) ||
             sections.isEmpty
@@ -41,7 +41,7 @@ class HomeShell extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
               child: Center(
                 child: Text(
-                  '${controller.currentUser!.name} - ${controller.currentUser!.role.label}',
+                  '${controller.session.currentUser!.name} - ${controller.session.currentUser!.role.label}',
                   style: context.textTheme.labelLarge,
                 ),
               ),
@@ -120,11 +120,11 @@ class MasterDataScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
     final tabs = <AppTabItem>[
-      if (controller.canViewMenu('inventory'))
+      if (controller.session.canViewMenu('inventory'))
         const AppTabItem(label: 'Inventaris', child: InventoryScreen()),
-      if (controller.canViewMenu('customers'))
+      if (controller.session.canViewMenu('customers'))
         const AppTabItem(label: 'Pelanggan', child: CustomerScreen()),
-      if (controller.canViewMenu('suppliers'))
+      if (controller.session.canViewMenu('suppliers'))
         const AppTabItem(
           label: 'Suplier',
           child: FeatureTableScreen(
@@ -158,7 +158,7 @@ class AccountManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
     final tabs = <AppTabItem>[
-      if (controller.canViewMenu('users'))
+      if (controller.session.canViewMenu('users'))
         const AppTabItem(
           label: 'Pengguna',
           child: FeatureTableScreen(
@@ -183,7 +183,7 @@ class AccountManagementScreen extends StatelessWidget {
             ],
           ),
         ),
-      if (controller.canViewMenu('roles'))
+      if (controller.session.canViewMenu('roles'))
         const AppTabItem(
           label: 'Role',
           child: FeatureTableScreen(
@@ -201,7 +201,7 @@ class AccountManagementScreen extends StatelessWidget {
             ],
           ),
         ),
-      if (controller.canViewMenu('authorization'))
+      if (controller.session.canViewMenu('authorization'))
         const AppTabItem(label: 'Otorisasi', child: AuthorizationScreen()),
     ];
 

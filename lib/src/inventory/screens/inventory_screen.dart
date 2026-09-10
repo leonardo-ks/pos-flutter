@@ -45,9 +45,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final canCreate = controller.canCreateMenu('inventory');
-    final canUpdate = controller.canUpdateMenu('inventory');
-    final canDelete = controller.canDeleteMenu('inventory');
+    final canCreate = controller.session.canCreateMenu('inventory');
+    final canUpdate = controller.session.canUpdateMenu('inventory');
+    final canDelete = controller.session.canDeleteMenu('inventory');
     final products = controller.products;
     final stockRecords = controller.featureRecords('/api/stock');
 
@@ -1146,7 +1146,7 @@ class _ProductStockEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    if (!controller.canViewMenu('inventory')) return const SizedBox.shrink();
+    if (!controller.session.canViewMenu('inventory')) return const SizedBox.shrink();
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
@@ -1171,7 +1171,7 @@ class _ProductStockEditor extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                if (controller.canCreateMenu('inventory'))
+                if (controller.session.canCreateMenu('inventory'))
                   IconButton.filledTonal(
                     tooltip: 'Tambah Stok Lokasi/Gudang',
                     onPressed: controller.isBusy
@@ -1190,7 +1190,7 @@ class _ProductStockEditor extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: _WarehouseStockTile(
                     record: stock,
-                    canManage: controller.canUpdateMenu('inventory'),
+                    canManage: controller.session.canUpdateMenu('inventory'),
                     onSave: (value) => onSaveStock(
                       (stock.values['location_id'] as num).toInt(),
                       value,

@@ -44,7 +44,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
     final customers = controller.customers;
-    if (!controller.canViewMenu('customers')) {
+    if (!controller.session.canViewMenu('customers')) {
       return const EmptyState(
         icon: Icons.lock,
         title: 'Akses Ditolak',
@@ -97,13 +97,13 @@ class _CustomerScreenState extends State<CustomerScreen> {
                             final addButton = FilledButton.icon(
                               onPressed:
                                   controller.isBusy ||
-                                      !controller.canCreateMenu('customers')
+                                      !controller.session.canCreateMenu('customers')
                                   ? null
                                   : () => _showCustomerDialog(context),
                               icon: const Icon(Icons.person_add),
                               label: const Text('Pelanggan'),
                             );
-                            if (!controller.canCreateMenu('customers')) {
+                            if (!controller.session.canCreateMenu('customers')) {
                               return search;
                             }
                             if (constraints.maxWidth < 560) {
@@ -177,7 +177,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                                         crossAxisAlignment:
                                             WrapCrossAlignment.center,
                                         children: [
-                                          if (controller.canUpdateMenu(
+                                          if (controller.session.canUpdateMenu(
                                             'customers',
                                           ))
                                             IconButton(
@@ -189,7 +189,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                                                   ),
                                               icon: const Icon(Icons.edit),
                                             ),
-                                          if (controller.canDeleteMenu(
+                                          if (controller.session.canDeleteMenu(
                                             'customers',
                                           ))
                                             IconButton(
@@ -387,7 +387,7 @@ class _CustomerDiscountTabState extends State<_CustomerDiscountTab> {
               customer.phone.contains(_query);
         })
         .toList(growable: false);
-    final canCreate = controller.canCreateMenu('customers');
+    final canCreate = controller.session.canCreateMenu('customers');
 
     return Column(
       children: [
@@ -569,7 +569,7 @@ class _CustomerDiscountDialogState extends State<_CustomerDiscountDialog> {
                   onPressed:
                       _customerId == null ||
                           _drafts.length >= categories.length ||
-                          !controller.canCreateMenu('customers')
+                          !controller.session.canCreateMenu('customers')
                       ? null
                       : () async {
                           final draft = await _showAddCategoryDialog(

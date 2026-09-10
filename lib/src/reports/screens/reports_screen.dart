@@ -23,7 +23,7 @@ class ReportsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    if (!controller.canManage) {
+    if (!controller.session.canManage) {
       return const EmptyState(
         icon: Icons.lock,
         title: 'Akses Ditolak',

@@ -12,25 +12,25 @@ void main() {
   group('canViewSection', () {
     test('cashier sees pos + master only', () async {
       final c = await loggedInAs(UserRole.cashier);
-      expect(c.canViewSection(AppSection.pos), isTrue);
-      expect(c.canViewSection(AppSection.master), isTrue);
-      expect(c.canViewSection(AppSection.reports), isFalse);
-      expect(c.canViewSection(AppSection.users), isFalse);
-      expect(c.canViewSection(AppSection.purchases), isFalse);
+      expect(c.session.canViewSection(AppSection.pos), isTrue);
+      expect(c.session.canViewSection(AppSection.master), isTrue);
+      expect(c.session.canViewSection(AppSection.reports), isFalse);
+      expect(c.session.canViewSection(AppSection.users), isFalse);
+      expect(c.session.canViewSection(AppSection.purchases), isFalse);
     });
 
     test('manager sees everything except users', () async {
       final c = await loggedInAs(UserRole.manager);
-      expect(c.canViewSection(AppSection.reports), isTrue);
-      expect(c.canViewSection(AppSection.purchases), isTrue);
-      expect(c.canViewSection(AppSection.returns), isTrue);
-      expect(c.canViewSection(AppSection.users), isFalse);
+      expect(c.session.canViewSection(AppSection.reports), isTrue);
+      expect(c.session.canViewSection(AppSection.purchases), isTrue);
+      expect(c.session.canViewSection(AppSection.returns), isTrue);
+      expect(c.session.canViewSection(AppSection.users), isFalse);
     });
 
     test('administrator sees every section', () async {
       final c = await loggedInAs(UserRole.administrator);
       for (final s in AppSection.values) {
-        expect(c.canViewSection(s), isTrue, reason: '$s');
+        expect(c.session.canViewSection(s), isTrue, reason: '$s');
       }
     });
   });
@@ -45,7 +45,7 @@ void main() {
     ]) {
       test('$role can_create $section == $canCreate', () async {
         final c = await loggedInAs(role);
-        expect(c.canCreateMenu(section), canCreate);
+        expect(c.session.canCreateMenu(section), canCreate);
       });
     }
   });
@@ -53,12 +53,12 @@ void main() {
   test('administrator with empty role-permissions cache is allowed everything',
       () async {
     final c = await loggedInAs(UserRole.administrator);
-    expect(c.canViewMenu('anything-at-all'), isTrue);
-    expect(c.canCreateMenu('anything-at-all'), isTrue);
+    expect(c.session.canViewMenu('anything-at-all'), isTrue);
+    expect(c.session.canCreateMenu('anything-at-all'), isTrue);
   });
 
   test('availableSections is canViewSection filtered, order preserved', () async {
     final c = await loggedInAs(UserRole.manager);
-    expect(c.availableSections, AppSection.values.where(c.canViewSection).toList());
+    expect(c.session.availableSections, AppSection.values.where(c.session.canViewSection).toList());
   });
 }

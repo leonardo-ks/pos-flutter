@@ -16,9 +16,9 @@ class ReturnsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
     final tabs = <AppTabItem>[
-      if (controller.canViewMenu('purchase-returns'))
+      if (controller.session.canViewMenu('purchase-returns'))
         const AppTabItem(label: 'Retur Pembelian', child: _PurchaseReturnTab()),
-      if (controller.canViewMenu('sales-returns'))
+      if (controller.session.canViewMenu('sales-returns'))
         const AppTabItem(label: 'Retur Penjualan', child: _SalesReturnTab()),
     ];
 
@@ -74,8 +74,8 @@ class _PurchaseReturnTabState extends State<_PurchaseReturnTab> {
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
     final rows = controller.featureRecords('/api/purchase-returns');
-    final canCreate = controller.canCreateMenu('purchase-returns');
-    final canUpdate = controller.canUpdateMenu('purchase-returns');
+    final canCreate = controller.session.canCreateMenu('purchase-returns');
+    final canUpdate = controller.session.canUpdateMenu('purchase-returns');
 
     return _ReturnList(
       search: _search,
@@ -251,8 +251,8 @@ class _SalesReturnTabState extends State<_SalesReturnTab> {
     _loaded = true;
     final controller = AppScope.of(context);
     Future.microtask(() async {
-      if (controller.canCreateMenu('sales-returns') ||
-          controller.canUpdateMenu('sales-returns')) {
+      if (controller.session.canCreateMenu('sales-returns') ||
+          controller.session.canUpdateMenu('sales-returns')) {
         await controller.refreshData();
       }
       await controller.loadFeatureRecords('/api/product-categories');
@@ -264,8 +264,8 @@ class _SalesReturnTabState extends State<_SalesReturnTab> {
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
     final rows = controller.featureRecords('/api/sales-returns');
-    final canCreate = controller.canCreateMenu('sales-returns');
-    final canUpdate = controller.canUpdateMenu('sales-returns');
+    final canCreate = controller.session.canCreateMenu('sales-returns');
+    final canUpdate = controller.session.canUpdateMenu('sales-returns');
 
     return _ReturnList(
       search: _search,

@@ -104,9 +104,9 @@ class _FeatureTableScreenState extends State<FeatureTableScreen> {
     final permissionSection =
         widget.permissionSection ?? _permissionSectionForPath(widget.path);
     final canCreate =
-        widget.canCreate && controller.canCreateMenu(permissionSection);
-    final canUpdate = controller.canUpdateMenu(permissionSection);
-    final canDelete = controller.canDeleteMenu(permissionSection);
+        widget.canCreate && controller.session.canCreateMenu(permissionSection);
+    final canUpdate = controller.session.canUpdateMenu(permissionSection);
+    final canDelete = controller.session.canDeleteMenu(permissionSection);
 
     return Column(
       children: [

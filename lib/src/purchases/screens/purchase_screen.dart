@@ -49,9 +49,9 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
     final purchases = controller.featureRecords('/api/purchases');
-    final canCreate = controller.canCreateMenu('purchases');
-    final canUpdate = controller.canUpdateMenu('purchases');
-    final canDelete = controller.canDeleteMenu('purchases');
+    final canCreate = controller.session.canCreateMenu('purchases');
+    final canUpdate = controller.session.canUpdateMenu('purchases');
+    final canDelete = controller.session.canDeleteMenu('purchases');
 
     return Column(
       children: [
