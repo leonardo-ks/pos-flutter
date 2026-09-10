@@ -15,6 +15,7 @@ import '../shared/api/api_client.dart';
 import '../shared/data/mock_data_store.dart';
 import '../shared/models/feature_record.dart';
 import '../shared/repositories/feature_repository.dart';
+import 'async_guard.dart';
 
 enum AppSection { pos, purchases, returns, reports, master, users }
 
@@ -40,6 +41,7 @@ class AppController extends ChangeNotifier {
     _products = List.unmodifiable(dataStore.products);
     _customers = List.unmodifiable(dataStore.customers);
     _transactions = List.unmodifiable(dataStore.transactions);
+    _guard.addListener(notifyListeners);
   }
 
   factory AppController.api({ApiClient? apiClient}) {
@@ -74,9 +76,7 @@ class AppController extends ChangeNotifier {
   int? selectedProductCategoryFilterId;
   int? selectedProductLocationFilterId;
   String selectedProductStockFilter = 'all';
-  bool isBusy = false;
-  String? errorMessage;
-  int _busyDepth = 0;
+  final AsyncGuard _guard = AsyncGuard();
   ReportRange selectedReportRange = ReportRange.today;
   DateTimeRange? customReportRange;
   int? selectedReportProductId;
@@ -108,6 +108,9 @@ class AppController extends ChangeNotifier {
   final Map<int, int> _cart = {};
   final Map<int, Product> _cartProducts = {};
   Future<void>? _refreshDataFuture;
+
+  bool get isBusy => _guard.isBusy;
+  String? get errorMessage => _guard.errorMessage;
 
   bool get isLoggedIn => currentUser != null;
   bool get isManager => currentUser?.role == UserRole.manager;
@@ -303,7 +306,7 @@ class AppController extends ChangeNotifier {
     selectedProductCategoryFilterId = null;
     selectedProductLocationFilterId = null;
     selectedProductStockFilter = 'all';
-    errorMessage = null;
+    _guard.clearError();
     selectedReportRange = ReportRange.today;
     customReportRange = null;
     selectedReportProductId = null;
@@ -381,8 +384,7 @@ class AppController extends ChangeNotifier {
           notifyListeners();
         })
         .catchError((Object error) {
-          errorMessage = error.toString();
-          notifyListeners();
+          _guard.reportError(error);
         });
   }
 
@@ -400,8 +402,7 @@ class AppController extends ChangeNotifier {
       _customerNextCursor = page.nextCursor;
       notifyListeners();
     } catch (error) {
-      errorMessage = error.toString();
-      notifyListeners();
+      _guard.reportError(error);
     }
   }
 
@@ -1044,25 +1045,12 @@ class AppController extends ChangeNotifier {
     _customerNextCursor = page.nextCursor;
   }
 
-  Future<void> _runBusy(Future<void> Function() action) async {
-    final wasIdle = _busyDepth == 0;
-    _busyDepth++;
-    if (wasIdle) {
-      isBusy = true;
-      errorMessage = null;
-      notifyListeners();
-    }
-    try {
-      await action();
-    } catch (error) {
-      errorMessage = error.toString();
-    } finally {
-      _busyDepth--;
-      if (_busyDepth < 0) _busyDepth = 0;
-      if (_busyDepth == 0) {
-        isBusy = false;
-        notifyListeners();
-      }
-    }
+  Future<void> _runBusy(Future<void> Function() action) => _guard.run(action);
+
+  @override
+  void dispose() {
+    _guard.removeListener(notifyListeners);
+    _guard.dispose();
+    super.dispose();
   }
 }
