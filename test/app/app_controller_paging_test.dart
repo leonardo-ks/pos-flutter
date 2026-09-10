@@ -46,10 +46,23 @@ void main() {
     final c = AppController(productRepository: repo);
     await c.loginAsRoleForTest(UserRole.manager);
 
+    // Ordering contract this test depends on, and which the assertion below
+    // pins: login performs exactly ONE fetchProductPage (call #1, plain page
+    // load). That makes the first search ('a') call #2 (gated) and the second
+    // search ('b') call #3 (immediate). If login's product prefetch ever
+    // changes, call #2 is no longer the gated one and the stale-guard path is
+    // silently skipped -- this expect makes that change fail loudly instead.
+    expect(repo.calls, 1);
+
     c.setProductSearch('a'); // in flight, blocked on gate
     c.setProductSearch('b'); // resolves immediately with [B]
     gate.complete(); // now let 'a' resolve with [A-STALE]
-    await Future<void>.delayed(Duration.zero);
+    // Drain enough microtask/event-loop turns for the gated 'a' future and its
+    // .then() guard in setProductSearch to run to completion. No fake_async
+    // dependency here, so pump a few turns rather than a single one.
+    for (var i = 0; i < 10; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
 
     expect(c.productSearch, 'b');
     expect(c.products.every((p) => p.name != 'A-STALE'), isTrue);
