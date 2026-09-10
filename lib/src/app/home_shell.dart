@@ -23,8 +23,9 @@ class HomeShell extends StatelessWidget {
     final controller = AppScope.of(context);
     final sections = controller.availableSections;
     final activeSection =
-        sections.contains(controller.selectedSection) || sections.isEmpty
-        ? controller.selectedSection
+        sections.contains(controller.navigation.selectedSection) ||
+            sections.isEmpty
+        ? controller.navigation.selectedSection
         : sections.first;
     final activeDestination = AppDestination.fromSection(activeSection);
     final selectedIndex = sections.indexOf(activeSection);
@@ -60,7 +61,7 @@ class HomeShell extends StatelessWidget {
             bottomNavigationBar: NavigationBar(
               selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
               onDestinationSelected: (index) {
-                controller.selectSection(sections[index]);
+                controller.navigation.selectSection(sections[index]);
               },
               destinations: [
                 for (final section in sections)
@@ -80,8 +81,8 @@ class HomeShell extends StatelessWidget {
                     : 228,
                 child: _SideNavigation(
                   sections: sections,
-                  selectedSection: controller.selectedSection,
-                  onSelected: controller.selectSection,
+                  selectedSection: controller.navigation.selectedSection,
+                  onSelected: controller.navigation.selectSection,
                 ),
               ),
               const VerticalDivider(width: 1),

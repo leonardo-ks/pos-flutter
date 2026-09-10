@@ -16,6 +16,7 @@ import '../shared/data/mock_data_store.dart';
 import '../shared/models/feature_record.dart';
 import '../shared/repositories/feature_repository.dart';
 import 'async_guard.dart';
+import 'controllers/navigation_controller.dart';
 
 enum AppSection { pos, purchases, returns, reports, master, users }
 
@@ -42,7 +43,19 @@ class AppController extends ChangeNotifier {
     _customers = List.unmodifiable(dataStore.customers);
     _transactions = List.unmodifiable(dataStore.transactions);
     _guard.addListener(notifyListeners);
+    navigation.addListener(notifyListeners);
   }
+
+  late final NavigationController navigation = NavigationController(
+    canView: canViewSection,
+    onEnterSection: (section) {
+      if (section == AppSection.reports && canManage) {
+        loadSalesReport(selectedReportRange);
+        loadGenericReport('all-transactions');
+        loadGenericReport('returns');
+      }
+    },
+  );
 
   factory AppController.api({ApiClient? apiClient}) {
     final client = apiClient ?? ApiClient();
@@ -70,7 +83,6 @@ class AppController extends ChangeNotifier {
   ];
 
   AppUser? currentUser;
-  AppSection selectedSection = AppSection.pos;
   Customer? selectedCustomer;
   String productSearch = '';
   int? selectedProductCategoryFilterId;
@@ -116,6 +128,8 @@ class AppController extends ChangeNotifier {
   bool get isManager => currentUser?.role == UserRole.manager;
   bool get isAdministrator => currentUser?.role == UserRole.administrator;
   bool get canManage => isManager || isAdministrator;
+
+  AppSection get selectedSection => navigation.selectedSection;
 
   List<Product> get products => List<Product>.from(_products);
   List<Customer> get customers => List.unmodifiable(_customers);
@@ -268,7 +282,7 @@ class AppController extends ChangeNotifier {
         username: username,
         password: password,
       );
-      selectedSection = AppSection.pos;
+      navigation.reset();
       selectedCustomer = null;
       _cart.clear();
       _cartProducts.clear();
@@ -300,7 +314,7 @@ class AppController extends ChangeNotifier {
 
   void logout() {
     currentUser = null;
-    selectedSection = AppSection.pos;
+    navigation.reset();
     selectedCustomer = null;
     productSearch = '';
     selectedProductCategoryFilterId = null;
@@ -350,18 +364,6 @@ class AppController extends ChangeNotifier {
     cashReceivedAmount =
         double.tryParse(value.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
     notifyListeners();
-  }
-
-  void selectSection(AppSection section) {
-    if (!availableSections.contains(section)) return;
-    if (selectedSection == section) return;
-    selectedSection = section;
-    notifyListeners();
-    if (section == AppSection.reports && canManage) {
-      loadSalesReport(selectedReportRange);
-      loadGenericReport('all-transactions');
-      loadGenericReport('returns');
-    }
   }
 
   void setProductSearch(String value) {
@@ -1051,6 +1053,8 @@ class AppController extends ChangeNotifier {
   void dispose() {
     _guard.removeListener(notifyListeners);
     _guard.dispose();
+    navigation.removeListener(notifyListeners);
+    navigation.dispose();
     super.dispose();
   }
 }

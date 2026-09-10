@@ -15,8 +15,8 @@ void main() {
     expect(find.text('Kasir'), findsWidgets);
     expect(find.text('Master'), findsWidgets);
     expect(find.text('Laporan'), findsNothing);
-    controller.selectSection(AppSection.reports);
-    expect(controller.selectedSection, AppSection.pos);
+    controller.navigation.selectSection(AppSection.reports);
+    expect(controller.navigation.selectedSection, AppSection.pos);
   });
 
   testWidgets('Manajer dapat membuka laporan', (tester) async {
