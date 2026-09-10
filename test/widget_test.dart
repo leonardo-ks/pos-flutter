@@ -40,11 +40,11 @@ void main() {
     await tester.pumpWidget(PosKasirApp(controller: controller));
 
     controller.customers.select(controller.customers.items.first);
-    controller.addToCart(controller.products.items.first);
+    controller.cart.addToCart(controller.products.items.first);
     await tester.pumpAndSettle();
 
-    expect(controller.discountAmount, 1800);
-    expect(controller.grandTotal, 16200);
+    expect(controller.cart.discountAmount, 1800);
+    expect(controller.cart.grandTotal, 16200);
   });
 
   testWidgets('Checkout mengurangi stok dan membuat transaksi', (tester) async {

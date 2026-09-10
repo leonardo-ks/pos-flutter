@@ -13,50 +13,50 @@ void main() {
   test('addToCart respects stock cap', () {
     final p = c.products.items.first;
     for (var i = 0; i < p.stock + 5; i++) {
-      c.addToCart(p);
+      c.cart.addToCart(p);
     }
-    final line = c.cartLines.firstWhere((l) => l.product.id == p.id);
+    final line = c.cart.lines.firstWhere((l) => l.product.id == p.id);
     expect(line.quantity, p.stock);
   });
 
   test('decrementCart removes the line at quantity 1', () {
     final p = c.products.items.first;
-    c.addToCart(p);
-    c.decrementCart(p);
-    expect(c.cartLines.where((l) => l.product.id == p.id), isEmpty);
+    c.cart.addToCart(p);
+    c.cart.decrementCart(p);
+    expect(c.cart.lines.where((l) => l.product.id == p.id), isEmpty);
   });
 
   test('setCartQuantity clamps into 1..stock', () {
     final p = c.products.items.first;
-    c.setCartQuantity(p, '99999');
-    expect(c.cartLines.first.quantity, p.stock);
-    c.setCartQuantity(p, '0');
-    expect(c.cartLines, isEmpty);
+    c.cart.setCartQuantity(p, '99999');
+    expect(c.cart.lines.first.quantity, p.stock);
+    c.cart.setCartQuantity(p, '0');
+    expect(c.cart.lines, isEmpty);
   });
 
   test('VIP discount math matches widget_test expectation', () {
     c.customers.select(c.customers.items.first);
-    c.addToCart(c.products.items.first);
-    expect(c.discountAmount, 1800);
-    expect(c.grandTotal, 16200);
+    c.cart.addToCart(c.products.items.first);
+    expect(c.cart.discountAmount, 1800);
+    expect(c.cart.grandTotal, 16200);
   });
 
   test('cashChange only applies for cash payment', () {
-    c.addToCart(c.products.items.first);
-    c.setCashReceived('20000');
-    expect(c.cashChange, 20000 - c.grandTotal);
-    c.selectPaymentMethod('transfer');
-    expect(c.cashChange, 0);
+    c.cart.addToCart(c.products.items.first);
+    c.cart.setCashReceived('20000');
+    expect(c.cart.cashChange, 20000 - c.cart.grandTotal);
+    c.cart.selectPaymentMethod('transfer');
+    expect(c.cart.cashChange, 0);
   });
 
   test('canCheckout gates', () {
-    expect(c.canCheckout, isFalse);
-    c.addToCart(c.products.items.first);
-    c.setCashReceived('1');
-    expect(c.canCheckout, isFalse);
-    c.setCashReceived('999999');
-    expect(c.canCheckout, isTrue);
-    c.selectPaymentMethod('transfer');
-    expect(c.canCheckout, isTrue);
+    expect(c.cart.canCheckout, isFalse);
+    c.cart.addToCart(c.products.items.first);
+    c.cart.setCashReceived('1');
+    expect(c.cart.canCheckout, isFalse);
+    c.cart.setCashReceived('999999');
+    expect(c.cart.canCheckout, isTrue);
+    c.cart.selectPaymentMethod('transfer');
+    expect(c.cart.canCheckout, isTrue);
   });
 }

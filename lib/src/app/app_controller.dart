@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../auth/models/app_user.dart';
 import '../auth/repositories/auth_repository.dart';
-import '../customers/models/customer.dart';
 import '../customers/repositories/customer_repository.dart';
-import '../inventory/models/product.dart';
 import '../inventory/repositories/product_repository.dart';
-import '../pos/models/cart_line.dart';
 import '../reports/models/sale_transaction.dart';
 import '../reports/repositories/report_repository.dart';
 import '../reports/repositories/transaction_repository.dart';
@@ -15,6 +12,7 @@ import '../shared/data/mock_data_store.dart';
 import '../shared/models/feature_record.dart';
 import '../shared/repositories/feature_repository.dart';
 import 'async_guard.dart';
+import 'controllers/cart_controller.dart';
 import 'controllers/customer_controller.dart';
 import 'controllers/feature_record_controller.dart';
 import 'controllers/navigation_controller.dart';
@@ -83,6 +81,13 @@ class AppController extends ChangeNotifier {
     // session must init before navigation: navigation's canView delegates to it.
     session.addListener(notifyListeners);
     navigation.addListener(notifyListeners);
+    cart = CartController(
+      liveProducts: () => products.items,
+      selectedCustomer: () => customers.selected,
+      customerGroupDiscounts: () => featureRecords.customerGroupDiscounts,
+      isBusy: () => _guard.isBusy,
+    );
+    cart.addListener(notifyListeners);
   }
 
   late final SessionController session = SessionController(
@@ -123,13 +128,10 @@ class AppController extends ChangeNotifier {
   late final FeatureRecordController featureRecords;
   late final CustomerController customers;
   late final ReportController reports;
+  late final CartController cart;
   final AsyncGuard _guard = AsyncGuard();
   String get selectedGenericReport => featureRecords.selectedGenericReport;
-  String selectedPaymentMethod = 'cash';
-  double cashReceivedAmount = 0;
 
-  final Map<int, int> _cart = {};
-  final Map<int, Product> _cartProducts = {};
   Future<void>? _refreshDataFuture;
 
   bool get isBusy => _guard.isBusy;
@@ -141,57 +143,6 @@ class AppController extends ChangeNotifier {
   bool canViewSection(AppSection s) => session.canViewSection(s);
 
   AppSection get selectedSection => navigation.selectedSection;
-
-  List<CartLine> get cartLines {
-    return _cart.entries
-        .map((entry) {
-          final product =
-              products.items.where((item) => item.id == entry.key).firstOrNull ??
-              _cartProducts[entry.key];
-          if (product == null) return null;
-          return CartLine(product: product, quantity: entry.value);
-        })
-        .whereType<CartLine>()
-        .toList(growable: false);
-  }
-
-  double get subtotal =>
-      cartLines.fold(0, (total, line) => total + line.subtotal);
-
-  double get discountAmount {
-    if (customers.selected == null) return 0;
-    return cartLines.fold<double>(
-      0,
-      (total, line) =>
-          total + line.subtotal * discountRateForProduct(line.product),
-    );
-  }
-
-  double get grandTotal => subtotal - discountAmount;
-  double get cashChange =>
-      selectedPaymentMethod == 'cash' ? cashReceivedAmount - grandTotal : 0;
-  bool get canCheckout {
-    if (cartLines.isEmpty || isBusy) return false;
-    if (selectedPaymentMethod != 'cash') return true;
-    return cashReceivedAmount >= grandTotal;
-  }
-
-  double discountRateForProduct(Product product, {Customer? customer}) {
-    final effectiveCustomer = customer ?? customers.selected;
-    if (effectiveCustomer == null || product.categoryId == null) return 0;
-    final match = featureRecords.customerGroupDiscounts.where(
-      (record) =>
-          (record.values['customer_id'] as num?)?.toInt() ==
-              effectiveCustomer.id &&
-          (record.values['category_id'] as num?)?.toInt() == product.categoryId,
-    );
-    if (match.isNotEmpty) {
-      final rate = match.first.values['rate'];
-      if (rate is num) return rate.toDouble();
-      return double.tryParse(rate?.toString() ?? '') ?? 0;
-    }
-    return 0;
-  }
 
   Future<void> login({
     required String username,
@@ -205,10 +156,7 @@ class AppController extends ChangeNotifier {
       );
       navigation.reset();
       customers.select(null);
-      _cart.clear();
-      _cartProducts.clear();
-      selectedPaymentMethod = 'cash';
-      cashReceivedAmount = 0;
+      cart.reset();
       await refreshData();
       await featureRecords.load('/api/product-categories');
       await featureRecords.load('/api/suppliers');
@@ -242,84 +190,31 @@ class AppController extends ChangeNotifier {
     reports.reset();
     featureRecords.reset();
     _refreshDataFuture = null;
-    _cart.clear();
-    _cartProducts.clear();
-    selectedPaymentMethod = 'cash';
-    cashReceivedAmount = 0;
-    notifyListeners();
-  }
-
-  void selectPaymentMethod(String value) {
-    selectedPaymentMethod = value;
-    cashReceivedAmount = value == 'cash' ? cashReceivedAmount : grandTotal;
-    notifyListeners();
-  }
-
-  void setCashReceived(String value) {
-    cashReceivedAmount =
-        double.tryParse(value.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-    notifyListeners();
-  }
-
-  void addToCart(Product product) {
-    final currentQuantity = _cart[product.id] ?? 0;
-    if (currentQuantity >= product.stock) return;
-    _cartProducts[product.id] = product;
-    _cart[product.id] = currentQuantity + 1;
-    notifyListeners();
-  }
-
-  void decrementCart(Product product) {
-    final currentQuantity = _cart[product.id] ?? 0;
-    if (currentQuantity <= 1) {
-      _cart.remove(product.id);
-      _cartProducts.remove(product.id);
-    } else {
-      _cart[product.id] = currentQuantity - 1;
-    }
-    notifyListeners();
-  }
-
-  void setCartQuantity(Product product, String value) {
-    final quantity = int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-    if (quantity <= 0) {
-      _cart.remove(product.id);
-      _cartProducts.remove(product.id);
-    } else {
-      _cart[product.id] = quantity.clamp(1, product.stock);
-    }
-    notifyListeners();
-  }
-
-  void removeFromCart(Product product) {
-    _cart.remove(product.id);
-    _cartProducts.remove(product.id);
+    cart.reset();
     notifyListeners();
   }
 
   Future<SaleTransaction?> checkout() async {
-    if (currentUser == null || cartLines.isEmpty) return null;
+    if (session.currentUser == null || cart.lines.isEmpty) return null;
     SaleTransaction? transaction;
-    final lines = cartLines;
+    final lines = cart.takeLinesForCheckout();
     await _runBusy(() async {
       transaction = await _transactionRepository.createTransaction(
         user: currentUser!,
         customer: customers.selected,
         lines: lines,
-        paymentMethod: selectedPaymentMethod,
-        cashReceived: selectedPaymentMethod == 'cash'
-            ? cashReceivedAmount
-            : grandTotal,
-        discountAmount: discountAmount,
+        paymentMethod: cart.paymentMethod,
+        cashReceived: cart.paymentMethod == 'cash'
+            ? cart.cashReceived
+            : cart.grandTotal,
+        discountAmount: cart.discountAmount,
       );
       await products.reload();
       await customers.reload();
       await reports.refetchTransactions(session.currentUser!);
       featureRecords.invalidateReports();
-      _cart.clear();
-      _cartProducts.clear();
+      cart.clearAfterCheckout();
       customers.select(null);
-      cashReceivedAmount = 0;
       await reports.refetchSalesReportIfManager();
     });
     return transaction;
@@ -381,6 +276,8 @@ class AppController extends ChangeNotifier {
     session.dispose();
     navigation.removeListener(notifyListeners);
     navigation.dispose();
+    cart.removeListener(notifyListeners);
+    cart.dispose();
     super.dispose();
   }
 }
