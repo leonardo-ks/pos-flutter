@@ -125,13 +125,14 @@ class AppController extends ChangeNotifier {
   late final ReportRepository _reportRepository;
   late final FeatureRepository _featureRepository;
 
-  // Sub-controller init order (enforced by the addListener sequence in the
-  // constructor body): products -> featureRecords -> customers -> reports, then
-  // session (late-final inline, touched by the session.addListener call) ->
-  // navigation, then cart last. reports needs featureRecords/customers/session;
-  // cart needs products/customers/featureRecords/_guard; navigation's canView
-  // delegates to session. session's rolePermissionRecords closure reads
-  // featureRecords lazily, so it is safe for session to construct after it.
+  // These 7 sub-controllers are `late final`; their init order is not fixed and
+  // not relied upon (the no-arg constructor builds `session` first via
+  // MockAuthRepository(session.demoUsers); AppController.api builds it after
+  // `reports`). No sub-controller calls a sibling during its own construction --
+  // every cross-controller reference above is a closure/tear-off evaluated later,
+  // post-construction. The one ordering constraint: `navigation`'s injected
+  // `canView` needs `session` to exist, which the constructor body's addListener
+  // sequence (session before navigation) guarantees. `_guard` is a plain `final`.
   late final ProductController products;
   late final FeatureRecordController featureRecords;
   late final CustomerController customers;
