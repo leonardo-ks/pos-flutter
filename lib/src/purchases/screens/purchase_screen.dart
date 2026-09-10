@@ -119,7 +119,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               final categories = controller.featureRecords(
                 '/api/product-categories',
               );
-              final products = controller.products
+              final products = controller.products.items
                   .where(
                     (product) =>
                         _categoryId == 0 || product.categoryId == _categoryId,
@@ -655,7 +655,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
     final suppliers = controller.featureRecords('/api/suppliers');
-    final products = controller.products;
+    final products = controller.products.items;
     _supplierId ??= suppliers.isEmpty ? null : suppliers.first.id;
 
     return AlertDialog(

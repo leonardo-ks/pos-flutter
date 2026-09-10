@@ -121,7 +121,7 @@ class _PurchaseReturnTabState extends State<_PurchaseReturnTab> {
         ],
         categoryValue: _categoryId,
         productValue: _productId,
-        products: controller.products
+        products: controller.products.items
             .where(
               (product) =>
                   _categoryId == 0 || product.categoryId == _categoryId,
@@ -308,7 +308,7 @@ class _SalesReturnTabState extends State<_SalesReturnTab> {
         ],
         categoryValue: _categoryId,
         productValue: _productId,
-        products: controller.products
+        products: controller.products.items
             .where(
               (product) =>
                   _categoryId == 0 || product.categoryId == _categoryId,

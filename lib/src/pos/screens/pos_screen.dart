@@ -23,7 +23,7 @@ class PosScreen extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= AppBreakpoints.splitPane;
-        final products = _ProductPicker(products: controller.filteredProducts);
+        final products = _ProductPicker(products: controller.products.items);
         final cart = const _CartPanel();
 
         if (wide) {
@@ -80,17 +80,17 @@ class _ProductPickerState extends State<_ProductPicker> {
               Expanded(
                 child: DebouncedTextField(
                   controller: _search,
-                  onChanged: controller.setProductSearch,
+                  onChanged: controller.products.setSearch,
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search),
                     labelText: 'Cari Produk Atau SKU',
-                    suffixIcon: controller.productSearch.isEmpty
+                    suffixIcon: controller.products.search.isEmpty
                         ? null
                         : IconButton(
                             tooltip: 'Bersihkan',
                             onPressed: () {
                               _search.clear();
-                              controller.setProductSearch('');
+                              controller.products.setSearch('');
                             },
                             icon: const Icon(Icons.close),
                           ),
@@ -120,7 +120,7 @@ class _ProductPickerState extends State<_ProductPicker> {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   itemCount:
                       products.length +
-                      (controller.canLoadMoreProducts ? 1 : 0),
+                      (controller.products.canLoadMore ? 1 : 0),
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 10),
                   itemBuilder: (context, index) {
@@ -131,7 +131,7 @@ class _ProductPickerState extends State<_ProductPicker> {
                           child: OutlinedButton.icon(
                             onPressed: controller.isBusy
                                 ? null
-                                : controller.loadMoreProducts,
+                                : controller.products.loadMore,
                             icon: const Icon(Icons.expand_more),
                             label: const Text('Muat Lagi'),
                           ),

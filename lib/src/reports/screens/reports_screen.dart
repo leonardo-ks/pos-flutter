@@ -718,7 +718,7 @@ class _ReportControls extends StatelessWidget {
             ? controller.selectedReportCategoryIdFor(reportKind)!
             : 0;
         final selectedProductId =
-            controller.products.any(
+            controller.products.items.any(
               (product) =>
                   product.id ==
                       controller.selectedReportProductIdFor(reportKind) &&
@@ -929,7 +929,7 @@ class _ReportControls extends StatelessWidget {
                 prefixIcon: Icons.inventory_2,
                 choices: [
                   const DropdownChoice(value: 0, label: 'Semua Item'),
-                  for (final product in controller.products.where(
+                  for (final product in controller.products.items.where(
                     (product) => product.categoryId == selectedCategoryId,
                   ))
                     DropdownChoice(value: product.id, label: product.name),

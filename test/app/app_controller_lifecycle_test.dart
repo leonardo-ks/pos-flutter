@@ -15,7 +15,7 @@ void main() {
   test('logout returns observable state to initial values', () async {
     final c = AppController();
     await c.loginAsRoleForTest(UserRole.manager);
-    c.addToCart(c.products.first);
+    c.addToCart(c.products.items.first);
     await c.setReportRange(ReportRange.week, kind: 'all-transactions');
     c.logout();
 
@@ -23,7 +23,7 @@ void main() {
     expect(c.selectedSection, AppSection.pos);
     expect(c.cartLines, isEmpty);
     expect(c.selectedCustomer, isNull);
-    expect(c.productSearch, '');
+    expect(c.products.search, '');
     expect(c.selectedReportRange, ReportRange.today);
     expect(c.selectedGenericReport, 'purchases');
     expect(c.errorMessage, isNull);
@@ -33,7 +33,7 @@ void main() {
     final c = AppController();
     await c.loginAsRoleForTest(UserRole.cashier);
     c.selectCustomer(c.customers.first);
-    c.addToCart(c.products.first);
+    c.addToCart(c.products.items.first);
     final tx = await c.checkout();
     expect(tx, isNotNull);
     expect(c.cartLines, isEmpty);

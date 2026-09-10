@@ -11,7 +11,7 @@ void main() {
   });
 
   test('addToCart respects stock cap', () {
-    final p = c.products.first;
+    final p = c.products.items.first;
     for (var i = 0; i < p.stock + 5; i++) {
       c.addToCart(p);
     }
@@ -20,14 +20,14 @@ void main() {
   });
 
   test('decrementCart removes the line at quantity 1', () {
-    final p = c.products.first;
+    final p = c.products.items.first;
     c.addToCart(p);
     c.decrementCart(p);
     expect(c.cartLines.where((l) => l.product.id == p.id), isEmpty);
   });
 
   test('setCartQuantity clamps into 1..stock', () {
-    final p = c.products.first;
+    final p = c.products.items.first;
     c.setCartQuantity(p, '99999');
     expect(c.cartLines.first.quantity, p.stock);
     c.setCartQuantity(p, '0');
@@ -36,13 +36,13 @@ void main() {
 
   test('VIP discount math matches widget_test expectation', () {
     c.selectCustomer(c.customers.first);
-    c.addToCart(c.products.first);
+    c.addToCart(c.products.items.first);
     expect(c.discountAmount, 1800);
     expect(c.grandTotal, 16200);
   });
 
   test('cashChange only applies for cash payment', () {
-    c.addToCart(c.products.first);
+    c.addToCart(c.products.items.first);
     c.setCashReceived('20000');
     expect(c.cashChange, 20000 - c.grandTotal);
     c.selectPaymentMethod('transfer');
@@ -51,7 +51,7 @@ void main() {
 
   test('canCheckout gates', () {
     expect(c.canCheckout, isFalse);
-    c.addToCart(c.products.first);
+    c.addToCart(c.products.items.first);
     c.setCashReceived('1');
     expect(c.canCheckout, isFalse);
     c.setCashReceived('999999');

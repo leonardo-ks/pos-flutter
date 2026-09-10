@@ -28,11 +28,11 @@ void main() {
     final c = AppController(productRepository: products);
     await c.loginAsRoleForTest(UserRole.manager); // refreshData -> page 1
 
-    expect(c.canLoadMoreProducts, isTrue);
-    await c.loadMoreProducts();
-    expect(c.products.map((p) => p.id), containsAll(<int>[1, 2]));
-    expect(c.canLoadMoreProducts, isFalse);
-    await c.loadMoreProducts(); // no-op past the end
+    expect(c.products.canLoadMore, isTrue);
+    await c.products.loadMore();
+    expect(c.products.items.map((p) => p.id), containsAll(<int>[1, 2]));
+    expect(c.products.canLoadMore, isFalse);
+    await c.products.loadMore(); // no-op past the end
     expect(products.fetchMoreCount, 1);
   });
 
@@ -54,8 +54,8 @@ void main() {
     // silently skipped -- this expect makes that change fail loudly instead.
     expect(repo.calls, 1);
 
-    c.setProductSearch('a'); // in flight, blocked on gate
-    c.setProductSearch('b'); // resolves immediately with [B]
+    c.products.setSearch('a'); // in flight, blocked on gate
+    c.products.setSearch('b'); // resolves immediately with [B]
     gate.complete(); // now let 'a' resolve with [A-STALE]
     // Drain enough microtask/event-loop turns for the gated 'a' future and its
     // .then() guard in setProductSearch to run to completion. No fake_async
@@ -64,8 +64,8 @@ void main() {
       await Future<void>.delayed(Duration.zero);
     }
 
-    expect(c.productSearch, 'b');
-    expect(c.products.every((p) => p.name != 'A-STALE'), isTrue);
+    expect(c.products.search, 'b');
+    expect(c.products.items.every((p) => p.name != 'A-STALE'), isTrue);
   });
 
   test('loadMoreCustomers appends and advances', () async {

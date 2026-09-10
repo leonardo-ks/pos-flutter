@@ -48,7 +48,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final canCreate = controller.session.canCreateMenu('inventory');
     final canUpdate = controller.session.canUpdateMenu('inventory');
     final canDelete = controller.session.canDeleteMenu('inventory');
-    final products = controller.products;
+    final products = controller.products.items;
     final stockRecords = controller.featureRecords('/api/stock');
 
     return DefaultTabController(
@@ -77,7 +77,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               controller: _searchController,
                               onChanged: (value) {
                                 setState(() => _query = value);
-                                controller.setProductSearch(value);
+                                controller.products.setSearch(value);
                               },
                               decoration: InputDecoration(
                                 prefixIcon: const Icon(Icons.search),
@@ -90,7 +90,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                         onPressed: () {
                                           _searchController.clear();
                                           setState(() => _query = '');
-                                          controller.setProductSearch('');
+                                          controller.products.setSearch('');
                                         },
                                         icon: const Icon(Icons.close),
                                       ),
@@ -139,7 +139,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             final compact = constraints.maxWidth < 820;
                             final groupFilter = SearchableDropdown<int?>(
                               label: 'Grup Produk',
-                              value: controller.selectedProductCategoryFilterId,
+                              value: controller.products.categoryFilterId,
                               prefixIcon: Icons.category,
                               choices: [
                                 const DropdownChoice<int?>(
@@ -157,11 +157,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               ],
                               onChanged: controller.isBusy
                                   ? null
-                                  : controller.setProductCategoryFilter,
+                                  : controller.products.setCategoryFilter,
                             );
                             final stockFilter = SearchableDropdown<String>(
                               label: 'Stok',
-                              value: controller.selectedProductStockFilter,
+                              value: controller.products.stockFilter,
                               prefixIcon: Icons.inventory_2,
                               choices: const [
                                 DropdownChoice(
@@ -183,11 +183,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               ],
                               onChanged: controller.isBusy
                                   ? null
-                                  : controller.setProductStockFilter,
+                                  : controller.products.setStockFilter,
                             );
                             final locationFilter = SearchableDropdown<int?>(
                               label: 'Lokasi/Gudang',
-                              value: controller.selectedProductLocationFilterId,
+                              value: controller.products.locationFilterId,
                               prefixIcon: Icons.warehouse,
                               choices: [
                                 const DropdownChoice<int?>(
@@ -205,7 +205,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               ],
                               onChanged: controller.isBusy
                                   ? null
-                                  : controller.setProductLocationFilter,
+                                  : controller.products.setLocationFilter,
                             );
                             if (compact) {
                               return Column(
@@ -280,7 +280,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                       },
                                     ),
                                   ),
-                                  if (controller.canLoadMoreProducts)
+                                  if (controller.products.canLoadMore)
                                     SliverToBoxAdapter(
                                       child: Padding(
                                         padding: const EdgeInsets.fromLTRB(
@@ -295,7 +295,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                             child: OutlinedButton.icon(
                                               onPressed: controller.isBusy
                                                   ? null
-                                                  : controller.loadMoreProducts,
+                                                  : controller.products.loadMore,
                                               icon: const Icon(
                                                 Icons.expand_more,
                                               ),
@@ -553,7 +553,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             total +
                             ((record.values['stock'] as num?)?.toInt() ?? 0),
                       );
-                final saved = await controller.saveProduct(
+                final saved = await controller.products.save(
                   Product(
                     id: product?.id ?? 0,
                     name: name.text.trim().isEmpty
@@ -603,12 +603,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
           animation: controller,
           builder: (context, _) {
             final latestProduct =
-                controller.products
+                controller.products.items
                     .where((item) => item.id == product.id)
                     .firstOrNull ??
                 product;
             final selectedLocationId =
-                controller.selectedProductLocationFilterId;
+                controller.products.locationFilterId;
             final latestStocks =
                 _stocksForProduct(
                       latestProduct,
@@ -714,7 +714,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       ),
     );
     if (confirmed == true) {
-      await controller.deleteProduct(product);
+      await controller.products.remove(product);
     }
   }
 
@@ -1151,7 +1151,7 @@ class _ProductStockEditor extends StatelessWidget {
       animation: controller,
       builder: (context, _) {
         final latestProduct =
-            controller.products
+            controller.products.items
                 .where((item) => item.id == product.id)
                 .firstOrNull ??
             product;

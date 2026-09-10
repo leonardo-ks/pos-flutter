@@ -40,7 +40,7 @@ void main() {
     await tester.pumpWidget(PosKasirApp(controller: controller));
 
     controller.selectCustomer(controller.customers.first);
-    controller.addToCart(controller.products.first);
+    controller.addToCart(controller.products.items.first);
     await tester.pumpAndSettle();
 
     expect(controller.discountAmount, 1800);
@@ -62,7 +62,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final initialTransactions = controller.transactions.length;
-    final initialStock = controller.products.first.stock;
+    final initialStock = controller.products.items.first.stock;
 
     await tester.tap(find.byKey(const Key('add-product-1')));
     await tester.pumpAndSettle();
@@ -76,6 +76,6 @@ void main() {
 
     expect(find.text('Transaksi Berhasil'), findsOneWidget);
     expect(controller.transactions.length, initialTransactions + 1);
-    expect(controller.products.first.stock, initialStock - 1);
+    expect(controller.products.items.first.stock, initialStock - 1);
   });
 }

@@ -17,6 +17,7 @@ import '../shared/models/feature_record.dart';
 import '../shared/repositories/feature_repository.dart';
 import 'async_guard.dart';
 import 'controllers/navigation_controller.dart';
+import 'controllers/product_controller.dart';
 import 'controllers/session_controller.dart';
 
 enum AppSection { pos, purchases, returns, reports, master, users }
@@ -40,10 +41,15 @@ class AppController extends ChangeNotifier {
         transactionRepository ?? MockTransactionRepository(dataStore);
     _reportRepository = reportRepository ?? MockReportRepository(dataStore);
     _featureRepository = featureRepository ?? MockFeatureRepository();
-    _products = List.unmodifiable(dataStore.products);
+    products = ProductController(
+      _guard,
+      _productRepository,
+      initialItems: dataStore.products,
+    );
     _customers = List.unmodifiable(dataStore.customers);
     _transactions = List.unmodifiable(dataStore.transactions);
     _guard.addListener(notifyListeners);
+    products.addListener(notifyListeners);
     // session must init before navigation: navigation's canView delegates to it.
     session.addListener(notifyListeners);
     navigation.addListener(notifyListeners);
@@ -84,10 +90,7 @@ class AppController extends ChangeNotifier {
   late final FeatureRepository _featureRepository;
 
   Customer? selectedCustomer;
-  String productSearch = '';
-  int? selectedProductCategoryFilterId;
-  int? selectedProductLocationFilterId;
-  String selectedProductStockFilter = 'all';
+  late final ProductController products;
   final AsyncGuard _guard = AsyncGuard();
   ReportRange selectedReportRange = ReportRange.today;
   DateTimeRange? customReportRange;
@@ -108,14 +111,12 @@ class AppController extends ChangeNotifier {
   String selectedPaymentMethod = 'cash';
   double cashReceivedAmount = 0;
 
-  List<Product> _products = [];
   List<Customer> _customers = [];
   List<SaleTransaction> _transactions = [];
   final Map<String, List<FeatureRecord>> _featureRecords = {};
   final Map<String, String> _featureQueryKeys = {};
   final Map<String, String?> _featureNextCursors = {};
   final Map<String, Future<void>> _featureLoadFutures = {};
-  String? _productNextCursor;
   String? _customerNextCursor;
   final Map<int, int> _cart = {};
   final Map<int, Product> _cartProducts = {};
@@ -131,19 +132,14 @@ class AppController extends ChangeNotifier {
 
   AppSection get selectedSection => navigation.selectedSection;
 
-  List<Product> get products => List<Product>.from(_products);
   List<Customer> get customers => List.unmodifiable(_customers);
   List<SaleTransaction> get transactions => List.unmodifiable(_transactions);
-
-  List<Product> get filteredProducts {
-    return products;
-  }
 
   List<CartLine> get cartLines {
     return _cart.entries
         .map((entry) {
           final product =
-              _products.where((item) => item.id == entry.key).firstOrNull ??
+              products.items.where((item) => item.id == entry.key).firstOrNull ??
               _cartProducts[entry.key];
           if (product == null) return null;
           return CartLine(product: product, quantity: entry.value);
@@ -237,10 +233,7 @@ class AppController extends ChangeNotifier {
     session.reset();
     navigation.reset();
     selectedCustomer = null;
-    productSearch = '';
-    selectedProductCategoryFilterId = null;
-    selectedProductLocationFilterId = null;
-    selectedProductStockFilter = 'all';
+    products.reset();
     _guard.clearError();
     selectedReportRange = ReportRange.today;
     customReportRange = null;
@@ -258,14 +251,12 @@ class AppController extends ChangeNotifier {
     selectedReturnReportType = 'all';
     selectedGenericReport = 'purchases';
     salesReport = SalesReport.empty();
-    _products = const [];
     _customers = const [];
     _transactions = const [];
     _featureRecords.clear();
     _featureQueryKeys.clear();
     _featureNextCursors.clear();
     _featureLoadFutures.clear();
-    _productNextCursor = null;
     _customerNextCursor = null;
     _refreshDataFuture = null;
     _cart.clear();
@@ -285,30 +276,6 @@ class AppController extends ChangeNotifier {
     cashReceivedAmount =
         double.tryParse(value.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
     notifyListeners();
-  }
-
-  void setProductSearch(String value) {
-    productSearch = value;
-    _productNextCursor = null;
-    notifyListeners();
-    _productRepository
-        .fetchProductPage(
-          query: value,
-          categoryId: selectedProductCategoryFilterId,
-          locationId: selectedProductLocationFilterId,
-          stockFilter: selectedProductStockFilter == 'all'
-              ? null
-              : selectedProductStockFilter,
-        )
-        .then((page) {
-          if (productSearch != value) return;
-          _products = page.rows;
-          _productNextCursor = page.nextCursor;
-          notifyListeners();
-        })
-        .catchError((Object error) {
-          _guard.reportError(error);
-        });
   }
 
   void selectCustomer(Customer? customer) {
@@ -365,22 +332,6 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<Product?> saveProduct(Product product) async {
-    Product? saved;
-    await _runBusy(() async {
-      saved = await _productRepository.upsertProduct(product);
-      await _loadProductPage();
-    });
-    return saved;
-  }
-
-  Future<void> deleteProduct(Product product) async {
-    await _runBusy(() async {
-      await _productRepository.deleteProduct(product.id);
-      await _loadProductPage();
-    });
-  }
-
   Future<Customer?> saveCustomer(Customer customer) async {
     Customer? saved;
     await _runBusy(() async {
@@ -416,7 +367,7 @@ class AppController extends ChangeNotifier {
             : grandTotal,
         discountAmount: discountAmount,
       );
-      await _loadProductPage();
+      await products.reload();
       await _loadCustomerPage();
       _transactions = await _transactionRepository.fetchTransactions(
         user: currentUser!,
@@ -449,7 +400,7 @@ class AppController extends ChangeNotifier {
       return;
     }
     final refresh = () async {
-      await _loadProductPage();
+      await products.reload();
       await _loadCustomerPage();
       _transactions = await _transactionRepository.fetchTransactions(
         user: currentUser!,
@@ -655,41 +606,7 @@ class AppController extends ChangeNotifier {
     return _featureQueryKeys[path] == _queryKey(query);
   }
 
-  bool get canLoadMoreProducts => _productNextCursor != null;
   bool get canLoadMoreCustomers => _customerNextCursor != null;
-
-  Future<void> setProductCategoryFilter(int? categoryId) async {
-    selectedProductCategoryFilterId = categoryId;
-    await _runBusy(_loadProductPage);
-  }
-
-  Future<void> setProductLocationFilter(int? locationId) async {
-    selectedProductLocationFilterId = locationId;
-    await _runBusy(_loadProductPage);
-  }
-
-  Future<void> setProductStockFilter(String filter) async {
-    selectedProductStockFilter = filter;
-    await _runBusy(_loadProductPage);
-  }
-
-  Future<void> loadMoreProducts() async {
-    final cursor = _productNextCursor;
-    if (cursor == null) return;
-    await _runBusy(() async {
-      final page = await _productRepository.fetchProductPage(
-        query: productSearch,
-        categoryId: selectedProductCategoryFilterId,
-        locationId: selectedProductLocationFilterId,
-        stockFilter: selectedProductStockFilter == 'all'
-            ? null
-            : selectedProductStockFilter,
-        cursor: cursor,
-      );
-      _products = [..._products, ...page.rows];
-      _productNextCursor = page.nextCursor;
-    });
-  }
 
   Future<bool> loadMoreCustomers({String? query}) async {
     final cursor = _customerNextCursor;
@@ -785,7 +702,7 @@ class AppController extends ChangeNotifier {
           path.contains('returns') ||
           path == '/api/stock' ||
           path == '/api/cash-entries') {
-        await _loadProductPage();
+        await products.reload();
         _invalidateReports();
       }
     });
@@ -949,19 +866,6 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<void> _loadProductPage() async {
-    final page = await _productRepository.fetchProductPage(
-      query: productSearch,
-      categoryId: selectedProductCategoryFilterId,
-      locationId: selectedProductLocationFilterId,
-      stockFilter: selectedProductStockFilter == 'all'
-          ? null
-          : selectedProductStockFilter,
-    );
-    _products = page.rows;
-    _productNextCursor = page.nextCursor;
-  }
-
   Future<void> _loadCustomerPage({String? query}) async {
     final page = await _customerRepository.fetchCustomerPage(query: query);
     _customers = page.rows;
@@ -974,6 +878,8 @@ class AppController extends ChangeNotifier {
   void dispose() {
     _guard.removeListener(notifyListeners);
     _guard.dispose();
+    products.removeListener(notifyListeners);
+    products.dispose();
     session.removeListener(notifyListeners);
     session.dispose();
     navigation.removeListener(notifyListeners);
