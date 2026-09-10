@@ -75,10 +75,10 @@ void main() {
     );
     final c = AppController(customerRepository: customers);
     await c.loginAsRoleForTest(UserRole.manager);
-    expect(c.canLoadMoreCustomers, isTrue);
-    final more = await c.loadMoreCustomers();
+    expect(c.customers.canLoadMore, isTrue);
+    final more = await c.customers.loadMore();
     expect(more, isTrue);
-    expect(c.canLoadMoreCustomers, isFalse);
+    expect(c.customers.canLoadMore, isFalse);
   });
 }
 

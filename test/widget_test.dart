@@ -39,7 +39,7 @@ void main() {
     await controller.loginAsRoleForTest(UserRole.cashier);
     await tester.pumpWidget(PosKasirApp(controller: controller));
 
-    controller.selectCustomer(controller.customers.first);
+    controller.customers.select(controller.customers.items.first);
     controller.addToCart(controller.products.items.first);
     await tester.pumpAndSettle();
 

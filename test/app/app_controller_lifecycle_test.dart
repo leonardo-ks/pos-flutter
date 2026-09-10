@@ -22,7 +22,7 @@ void main() {
     expect(c.isLoggedIn, isFalse);
     expect(c.selectedSection, AppSection.pos);
     expect(c.cartLines, isEmpty);
-    expect(c.selectedCustomer, isNull);
+    expect(c.customers.selected, isNull);
     expect(c.products.search, '');
     expect(c.selectedReportRange, ReportRange.today);
     expect(c.selectedGenericReport, 'purchases');
@@ -32,12 +32,12 @@ void main() {
   test('checkout empties cart, clears customer, returns a transaction', () async {
     final c = AppController();
     await c.loginAsRoleForTest(UserRole.cashier);
-    c.selectCustomer(c.customers.first);
+    c.customers.select(c.customers.items.first);
     c.addToCart(c.products.items.first);
     final tx = await c.checkout();
     expect(tx, isNotNull);
     expect(c.cartLines, isEmpty);
-    expect(c.selectedCustomer, isNull);
+    expect(c.customers.selected, isNull);
   });
 
   test('checkout returns null with empty cart', () async {

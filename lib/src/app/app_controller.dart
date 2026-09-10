@@ -16,6 +16,7 @@ import '../shared/data/mock_data_store.dart';
 import '../shared/models/feature_record.dart';
 import '../shared/repositories/feature_repository.dart';
 import 'async_guard.dart';
+import 'controllers/customer_controller.dart';
 import 'controllers/navigation_controller.dart';
 import 'controllers/product_controller.dart';
 import 'controllers/session_controller.dart';
@@ -46,10 +47,15 @@ class AppController extends ChangeNotifier {
       _productRepository,
       initialItems: dataStore.products,
     );
-    _customers = List.unmodifiable(dataStore.customers);
+    customers = CustomerController(
+      _guard,
+      _customerRepository,
+      initialItems: dataStore.customers,
+    );
     _transactions = List.unmodifiable(dataStore.transactions);
     _guard.addListener(notifyListeners);
     products.addListener(notifyListeners);
+    customers.addListener(notifyListeners);
     // session must init before navigation: navigation's canView delegates to it.
     session.addListener(notifyListeners);
     navigation.addListener(notifyListeners);
@@ -89,8 +95,8 @@ class AppController extends ChangeNotifier {
   late final ReportRepository _reportRepository;
   late final FeatureRepository _featureRepository;
 
-  Customer? selectedCustomer;
   late final ProductController products;
+  late final CustomerController customers;
   final AsyncGuard _guard = AsyncGuard();
   ReportRange selectedReportRange = ReportRange.today;
   DateTimeRange? customReportRange;
@@ -111,13 +117,11 @@ class AppController extends ChangeNotifier {
   String selectedPaymentMethod = 'cash';
   double cashReceivedAmount = 0;
 
-  List<Customer> _customers = [];
   List<SaleTransaction> _transactions = [];
   final Map<String, List<FeatureRecord>> _featureRecords = {};
   final Map<String, String> _featureQueryKeys = {};
   final Map<String, String?> _featureNextCursors = {};
   final Map<String, Future<void>> _featureLoadFutures = {};
-  String? _customerNextCursor;
   final Map<int, int> _cart = {};
   final Map<int, Product> _cartProducts = {};
   Future<void>? _refreshDataFuture;
@@ -132,7 +136,6 @@ class AppController extends ChangeNotifier {
 
   AppSection get selectedSection => navigation.selectedSection;
 
-  List<Customer> get customers => List.unmodifiable(_customers);
   List<SaleTransaction> get transactions => List.unmodifiable(_transactions);
 
   List<CartLine> get cartLines {
@@ -152,7 +155,7 @@ class AppController extends ChangeNotifier {
       cartLines.fold(0, (total, line) => total + line.subtotal);
 
   double get discountAmount {
-    if (selectedCustomer == null) return 0;
+    if (customers.selected == null) return 0;
     return cartLines.fold<double>(
       0,
       (total, line) =>
@@ -173,7 +176,7 @@ class AppController extends ChangeNotifier {
       featureRecords('/api/customer-group-discounts');
 
   double discountRateForProduct(Product product, {Customer? customer}) {
-    final effectiveCustomer = customer ?? selectedCustomer;
+    final effectiveCustomer = customer ?? customers.selected;
     if (effectiveCustomer == null || product.categoryId == null) return 0;
     final match = customerGroupDiscounts.where(
       (record) =>
@@ -200,7 +203,7 @@ class AppController extends ChangeNotifier {
         password: password,
       );
       navigation.reset();
-      selectedCustomer = null;
+      customers.select(null);
       _cart.clear();
       _cartProducts.clear();
       selectedPaymentMethod = 'cash';
@@ -232,7 +235,7 @@ class AppController extends ChangeNotifier {
   void logout() {
     session.reset();
     navigation.reset();
-    selectedCustomer = null;
+    customers.reset();
     products.reset();
     _guard.clearError();
     selectedReportRange = ReportRange.today;
@@ -251,13 +254,11 @@ class AppController extends ChangeNotifier {
     selectedReturnReportType = 'all';
     selectedGenericReport = 'purchases';
     salesReport = SalesReport.empty();
-    _customers = const [];
     _transactions = const [];
     _featureRecords.clear();
     _featureQueryKeys.clear();
     _featureNextCursors.clear();
     _featureLoadFutures.clear();
-    _customerNextCursor = null;
     _refreshDataFuture = null;
     _cart.clear();
     _cartProducts.clear();
@@ -276,24 +277,6 @@ class AppController extends ChangeNotifier {
     cashReceivedAmount =
         double.tryParse(value.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
     notifyListeners();
-  }
-
-  void selectCustomer(Customer? customer) {
-    selectedCustomer = customer;
-    notifyListeners();
-  }
-
-  Future<void> searchCustomers(String value) async {
-    try {
-      _customerNextCursor = null;
-      notifyListeners();
-      final page = await _customerRepository.fetchCustomerPage(query: value);
-      _customers = page.rows;
-      _customerNextCursor = page.nextCursor;
-      notifyListeners();
-    } catch (error) {
-      _guard.reportError(error);
-    }
   }
 
   void addToCart(Product product) {
@@ -332,26 +315,6 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<Customer?> saveCustomer(Customer customer) async {
-    Customer? saved;
-    await _runBusy(() async {
-      saved = await _customerRepository.upsertCustomer(customer);
-      await _loadCustomerPage();
-      if (selectedCustomer?.id == saved?.id) {
-        selectedCustomer = saved;
-      }
-    });
-    return saved;
-  }
-
-  Future<void> deleteCustomer(Customer customer) async {
-    await _runBusy(() async {
-      await _customerRepository.deleteCustomer(customer.id);
-      await _loadCustomerPage();
-      if (selectedCustomer?.id == customer.id) selectedCustomer = null;
-    });
-  }
-
   Future<SaleTransaction?> checkout() async {
     if (currentUser == null || cartLines.isEmpty) return null;
     SaleTransaction? transaction;
@@ -359,7 +322,7 @@ class AppController extends ChangeNotifier {
     await _runBusy(() async {
       transaction = await _transactionRepository.createTransaction(
         user: currentUser!,
-        customer: selectedCustomer,
+        customer: customers.selected,
         lines: lines,
         paymentMethod: selectedPaymentMethod,
         cashReceived: selectedPaymentMethod == 'cash'
@@ -368,15 +331,15 @@ class AppController extends ChangeNotifier {
         discountAmount: discountAmount,
       );
       await products.reload();
-      await _loadCustomerPage();
+      await customers.reload();
       _transactions = await _transactionRepository.fetchTransactions(
         user: currentUser!,
-        customers: _customers,
+        customers: customers.items,
       );
       _invalidateReports();
       _cart.clear();
       _cartProducts.clear();
-      selectedCustomer = null;
+      customers.select(null);
       cashReceivedAmount = 0;
       if (canManage) {
         salesReport = await _reportRepository.fetchSalesReport(
@@ -401,10 +364,10 @@ class AppController extends ChangeNotifier {
     }
     final refresh = () async {
       await products.reload();
-      await _loadCustomerPage();
+      await customers.reload();
       _transactions = await _transactionRepository.fetchTransactions(
         user: currentUser!,
-        customers: _customers,
+        customers: customers.items,
       );
     }();
     _refreshDataFuture = refresh;
@@ -604,22 +567,6 @@ class AppController extends ChangeNotifier {
     if (_featureNextCursors[path] == null) return false;
     if (query == null) return true;
     return _featureQueryKeys[path] == _queryKey(query);
-  }
-
-  bool get canLoadMoreCustomers => _customerNextCursor != null;
-
-  Future<bool> loadMoreCustomers({String? query}) async {
-    final cursor = _customerNextCursor;
-    if (cursor == null) return false;
-    await _runBusy(() async {
-      final page = await _customerRepository.fetchCustomerPage(
-        query: query,
-        cursor: cursor,
-      );
-      _customers = [..._customers, ...page.rows];
-      _customerNextCursor = page.nextCursor;
-    });
-    return true;
   }
 
   Future<void> loadFeatureRecords(
@@ -866,12 +813,6 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<void> _loadCustomerPage({String? query}) async {
-    final page = await _customerRepository.fetchCustomerPage(query: query);
-    _customers = page.rows;
-    _customerNextCursor = page.nextCursor;
-  }
-
   Future<void> _runBusy(Future<void> Function() action) => _guard.run(action);
 
   @override
@@ -880,6 +821,8 @@ class AppController extends ChangeNotifier {
     _guard.dispose();
     products.removeListener(notifyListeners);
     products.dispose();
+    customers.removeListener(notifyListeners);
+    customers.dispose();
     session.removeListener(notifyListeners);
     session.dispose();
     navigation.removeListener(notifyListeners);

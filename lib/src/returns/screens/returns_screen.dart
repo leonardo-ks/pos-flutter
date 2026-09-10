@@ -303,7 +303,7 @@ class _SalesReturnTabState extends State<_SalesReturnTab> {
         partnerValue: _customerId,
         partnerChoices: [
           const DropdownChoice(value: 0, label: 'Semua Pelanggan'),
-          for (final customer in controller.customers)
+          for (final customer in controller.customers.items)
             DropdownChoice(value: customer.id, label: customer.name),
         ],
         categoryValue: _categoryId,

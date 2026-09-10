@@ -35,7 +35,7 @@ void main() {
   });
 
   test('VIP discount math matches widget_test expectation', () {
-    c.selectCustomer(c.customers.first);
+    c.customers.select(c.customers.items.first);
     c.addToCart(c.products.items.first);
     expect(c.discountAmount, 1800);
     expect(c.grandTotal, 16200);

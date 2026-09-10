@@ -206,21 +206,21 @@ class _CartPanel extends StatelessWidget {
           child: SearchableDropdown<int?>(
             key: const Key('customer-select'),
             label: 'Pelanggan',
-            value: controller.selectedCustomer?.id,
+            value: controller.customers.selected?.id,
             prefixIcon: Icons.person_search,
             choices: [
               const DropdownChoice<int?>(value: null, label: 'Tanpa Pelanggan'),
-              for (final customer in controller.customers)
+              for (final customer in controller.customers.items)
                 DropdownChoice<int?>(value: customer.id, label: customer.name),
             ],
             onChanged: (id) {
               Customer? customer;
               if (id != null) {
-                customer = controller.customers.firstWhere(
+                customer = controller.customers.items.firstWhere(
                   (item) => item.id == id,
                 );
               }
-              controller.selectCustomer(customer);
+              controller.customers.select(customer);
             },
           ),
         ),
@@ -358,7 +358,7 @@ class _PaymentSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final discountLabel = controller.selectedCustomer == null
+    final discountLabel = controller.customers.selected == null
         ? 'Diskon'
         : 'Diskon per grup produk';
 

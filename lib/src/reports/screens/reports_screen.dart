@@ -728,7 +728,7 @@ class _ReportControls extends StatelessWidget {
             ? controller.selectedReportProductIdFor(reportKind)!
             : 0;
         final selectedCustomerId =
-            controller.customers.any(
+            controller.customers.items.any(
               (customer) =>
                   customer.id ==
                   controller.selectedReportCustomerIdFor(reportKind),
@@ -855,7 +855,7 @@ class _ReportControls extends StatelessWidget {
                 prefixIcon: Icons.people,
                 choices: [
                   const DropdownChoice(value: 0, label: 'Semua Pelanggan'),
-                  for (final customer in controller.customers)
+                  for (final customer in controller.customers.items)
                     DropdownChoice(value: customer.id, label: customer.name),
                 ],
                 onChanged: controller.isBusy
