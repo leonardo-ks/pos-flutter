@@ -23,7 +23,7 @@ class PosScreen extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= AppBreakpoints.splitPane;
-        final products = _ProductPicker(products: controller.filteredProducts);
+        final products = _ProductPicker(products: controller.products.items);
         final cart = const _CartPanel();
 
         if (wide) {
@@ -80,17 +80,17 @@ class _ProductPickerState extends State<_ProductPicker> {
               Expanded(
                 child: DebouncedTextField(
                   controller: _search,
-                  onChanged: controller.setProductSearch,
+                  onChanged: controller.products.setSearch,
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search),
                     labelText: 'Cari Produk Atau SKU',
-                    suffixIcon: controller.productSearch.isEmpty
+                    suffixIcon: controller.products.search.isEmpty
                         ? null
                         : IconButton(
                             tooltip: 'Bersihkan',
                             onPressed: () {
                               _search.clear();
-                              controller.setProductSearch('');
+                              controller.products.setSearch('');
                             },
                             icon: const Icon(Icons.close),
                           ),
@@ -120,7 +120,7 @@ class _ProductPickerState extends State<_ProductPicker> {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   itemCount:
                       products.length +
-                      (controller.canLoadMoreProducts ? 1 : 0),
+                      (controller.products.canLoadMore ? 1 : 0),
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 10),
                   itemBuilder: (context, index) {
@@ -131,7 +131,7 @@ class _ProductPickerState extends State<_ProductPicker> {
                           child: OutlinedButton.icon(
                             onPressed: controller.isBusy
                                 ? null
-                                : controller.loadMoreProducts,
+                                : controller.products.loadMore,
                             icon: const Icon(Icons.expand_more),
                             label: const Text('Muat Lagi'),
                           ),
@@ -182,7 +182,7 @@ class _ProductTile extends StatelessWidget {
               tooltip: 'Tambah ke keranjang',
               onPressed: product.stock == 0
                   ? null
-                  : () => controller.addToCart(product),
+                  : () => controller.cart.addToCart(product),
               icon: const Icon(Icons.add_shopping_cart),
             ),
           ],
@@ -206,27 +206,27 @@ class _CartPanel extends StatelessWidget {
           child: SearchableDropdown<int?>(
             key: const Key('customer-select'),
             label: 'Pelanggan',
-            value: controller.selectedCustomer?.id,
+            value: controller.customers.selected?.id,
             prefixIcon: Icons.person_search,
             choices: [
               const DropdownChoice<int?>(value: null, label: 'Tanpa Pelanggan'),
-              for (final customer in controller.customers)
+              for (final customer in controller.customers.items)
                 DropdownChoice<int?>(value: customer.id, label: customer.name),
             ],
             onChanged: (id) {
               Customer? customer;
               if (id != null) {
-                customer = controller.customers.firstWhere(
+                customer = controller.customers.items.firstWhere(
                   (item) => item.id == id,
                 );
               }
-              controller.selectCustomer(customer);
+              controller.customers.select(customer);
             },
           ),
         ),
         const SizedBox(height: 12),
         Expanded(
-          child: controller.cartLines.isEmpty
+          child: controller.cart.lines.isEmpty
               ? const EmptyState(
                   icon: Icons.shopping_cart_outlined,
                   title: 'Keranjang kosong',
@@ -234,11 +234,11 @@ class _CartPanel extends StatelessWidget {
                 )
               : ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: controller.cartLines.length,
+                  itemCount: controller.cart.lines.length,
                   separatorBuilder: (context, index) =>
                       const Divider(height: 1),
                   itemBuilder: (context, index) {
-                    final line = controller.cartLines[index];
+                    final line = controller.cart.lines[index];
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(line.product.name),
@@ -250,7 +250,7 @@ class _CartPanel extends StatelessWidget {
                           IconButton(
                             tooltip: 'Kurangi',
                             onPressed: () =>
-                                controller.decrementCart(line.product),
+                                controller.cart.decrementCart(line.product),
                             icon: const Icon(Icons.remove_circle_outline),
                           ),
                           SizedBox(
@@ -259,13 +259,14 @@ class _CartPanel extends StatelessWidget {
                           ),
                           IconButton(
                             tooltip: 'Tambah',
-                            onPressed: () => controller.addToCart(line.product),
+                            onPressed: () =>
+                                controller.cart.addToCart(line.product),
                             icon: const Icon(Icons.add_circle_outline),
                           ),
                           IconButton(
                             tooltip: 'Hapus',
                             onPressed: () =>
-                                controller.removeFromCart(line.product),
+                                controller.cart.removeFromCart(line.product),
                             icon: const Icon(Icons.delete_outline),
                           ),
                         ],
@@ -333,8 +334,8 @@ class _QuantityInputState extends State<_QuantityInput> {
         contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       ),
       onChanged: (value) {
-        controller.setCartQuantity(widget.line.product, value);
-        final clamped = controller.cartLines
+        controller.cart.setCartQuantity(widget.line.product, value);
+        final clamped = controller.cart.lines
             .where((line) => line.product.id == widget.line.product.id)
             .firstOrNull
             ?.quantity;
@@ -358,7 +359,7 @@ class _PaymentSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final discountLabel = controller.selectedCustomer == null
+    final discountLabel = controller.customers.selected == null
         ? 'Diskon'
         : 'Diskon per grup produk';
 
@@ -372,21 +373,24 @@ class _PaymentSummary extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _SummaryRow(label: 'Subtotal', value: rupiah(controller.subtotal)),
+          _SummaryRow(
+            label: 'Subtotal',
+            value: rupiah(controller.cart.subtotal),
+          ),
           _SummaryRow(
             label: discountLabel,
-            value: '-${rupiah(controller.discountAmount)}',
+            value: '-${rupiah(controller.cart.discountAmount)}',
           ),
           const Divider(),
           _SummaryRow(
             label: 'Total Akhir',
-            value: rupiah(controller.grandTotal),
+            value: rupiah(controller.cart.grandTotal),
             prominent: true,
           ),
           const SizedBox(height: 10),
           SearchableDropdown<String>(
             label: 'Metode Pembayaran',
-            value: controller.selectedPaymentMethod,
+            value: controller.cart.paymentMethod,
             prefixIcon: Icons.account_balance_wallet,
             choices: const [
               DropdownChoice(value: 'cash', label: 'Tunai'),
@@ -396,9 +400,9 @@ class _PaymentSummary extends StatelessWidget {
             ],
             onChanged: controller.isBusy
                 ? null
-                : controller.selectPaymentMethod,
+                : controller.cart.selectPaymentMethod,
           ),
-          if (controller.selectedPaymentMethod == 'cash') ...[
+          if (controller.cart.paymentMethod == 'cash') ...[
             const SizedBox(height: 10),
             TextField(
               key: const Key('cash-received-input'),
@@ -407,12 +411,14 @@ class _PaymentSummary extends StatelessWidget {
                 prefixIcon: Icon(Icons.payments),
                 labelText: 'Uang Diterima',
               ),
-              onChanged: controller.setCashReceived,
+              onChanged: controller.cart.setCashReceived,
             ),
             const SizedBox(height: 8),
             _SummaryRow(
               label: 'Kembalian',
-              value: rupiah(controller.cashChange.clamp(0, double.infinity)),
+              value: rupiah(
+                controller.cart.cashChange.clamp(0, double.infinity),
+              ),
             ),
           ],
           const SizedBox(height: 12),
@@ -420,7 +426,7 @@ class _PaymentSummary extends StatelessWidget {
             width: double.infinity,
             child: FilledButton.icon(
               key: const Key('checkout-button'),
-              onPressed: controller.canCheckout ? onCheckout : null,
+              onPressed: controller.cart.canCheckout ? onCheckout : null,
               icon: const Icon(Icons.payments),
               label: Text(
                 controller.isBusy ? 'Memproses...' : 'Selesaikan Pembayaran',

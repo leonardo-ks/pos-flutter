@@ -23,7 +23,7 @@ class ReportsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    if (!controller.canManage) {
+    if (!controller.session.canManage) {
       return const EmptyState(
         icon: Icons.lock,
         title: 'Akses Ditolak',
@@ -84,7 +84,7 @@ class _GenericReportTabState extends State<_GenericReportTab> {
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
     final path = '/api/reports/${widget.tab.$1}';
-    final rows = controller.featureRecords(path);
+    final rows = controller.featureRecords.records(path);
 
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
@@ -179,10 +179,10 @@ class _GenericReportTabState extends State<_GenericReportTab> {
               sliver: SliverList.separated(
                 itemCount:
                     rows.length +
-                    (controller.canLoadMoreFeatureRecords(
+                    (controller.featureRecords.canLoadMore(
                           path,
-                          query: controller.reportQueryFor(
-                            widget.tab.$1,
+                          query: controller.reports.reportQuery(
+                            kind: widget.tab.$1,
                             search: _filter,
                           ),
                         )
@@ -359,7 +359,7 @@ class _GenericReportCard extends StatelessWidget {
     final isSale = row['type']?.toString().toLowerCase() == 'penjualan';
     final transactionId = (row['id'] as num?)?.toInt();
     final saleDetail = isSale && transactionId != null
-        ? controller.transactions
+        ? controller.reports.transactions
               .where((transaction) => transaction.id == transactionId)
               .firstOrNull
         : null;
@@ -663,7 +663,7 @@ class _ReportHeader extends StatelessWidget {
       );
 
     try {
-      final bytes = await controller.exportSalesReport();
+      final bytes = await controller.reports.exportSalesReport();
       if (bytes == null || bytes.isEmpty) {
         messenger.showSnackBar(
           const SnackBar(content: Text('Laporan Excel kosong.')),
@@ -708,45 +708,45 @@ class _ReportControls extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final narrow = constraints.maxWidth < 760;
-        final categories = controller.featureRecords('/api/product-categories');
+        final categories = controller.featureRecords.records('/api/product-categories');
         final selectedCategoryId =
             categories.any(
               (category) =>
                   category.id ==
-                  controller.selectedReportCategoryIdFor(reportKind),
+                  controller.reports.filterFor(reportKind).categoryId,
             )
-            ? controller.selectedReportCategoryIdFor(reportKind)!
+            ? controller.reports.filterFor(reportKind).categoryId!
             : 0;
         final selectedProductId =
-            controller.products.any(
+            controller.products.items.any(
               (product) =>
                   product.id ==
-                      controller.selectedReportProductIdFor(reportKind) &&
+                      controller.reports.filterFor(reportKind).productId &&
                   (selectedCategoryId == 0 ||
                       product.categoryId == selectedCategoryId),
             )
-            ? controller.selectedReportProductIdFor(reportKind)!
+            ? controller.reports.filterFor(reportKind).productId!
             : 0;
         final selectedCustomerId =
-            controller.customers.any(
+            controller.customers.items.any(
               (customer) =>
                   customer.id ==
-                  controller.selectedReportCustomerIdFor(reportKind),
+                  controller.reports.filterFor(reportKind).customerId,
             )
-            ? controller.selectedReportCustomerIdFor(reportKind)!
+            ? controller.reports.filterFor(reportKind).customerId!
             : 0;
-        final suppliers = controller.featureRecords('/api/suppliers');
+        final suppliers = controller.featureRecords.records('/api/suppliers');
         final selectedSupplierId =
             suppliers.any(
               (supplier) =>
                   supplier.id ==
-                  controller.selectedReportSupplierIdFor(reportKind),
+                  controller.reports.filterFor(reportKind).supplierId,
             )
-            ? controller.selectedReportSupplierIdFor(reportKind)!
+            ? controller.reports.filterFor(reportKind).supplierId!
             : 0;
-        final selectedRange = controller.reportRangeFor(reportKind);
+        final selectedRange = controller.reports.reportRangeFor(reportKind);
         final isReturns = reportKind == 'returns';
-        final typeValue = controller.selectedReportTypeFor(reportKind);
+        final typeValue = controller.reports.filterFor(reportKind).type;
         final typeFilterVisible =
             reportKind == 'all-transactions' || reportKind == 'returns';
         final showCustomerFilter =
@@ -782,7 +782,7 @@ class _ReportControls extends StatelessWidget {
                   : (value) async {
                       if (value.isEmpty) return;
                       final selected = value.first;
-                      await controller.setReportRange(
+                      await controller.reports.setRange(
                         selected,
                         kind: reportKind,
                       );
@@ -795,7 +795,7 @@ class _ReportControls extends StatelessWidget {
               onPressed: controller.isBusy ? null : () => _pickRange(context),
               icon: const Icon(Icons.calendar_month),
               label: Text(
-                _rangeLabel(controller.customReportRangeFor(reportKind)),
+                _rangeLabel(controller.reports.customReportRangeFor(reportKind)),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -839,9 +839,9 @@ class _ReportControls extends StatelessWidget {
                     ? null
                     : (value) {
                         if (isReturns) {
-                          controller.setReturnReportType(value);
+                          controller.reports.setReturnType(value);
                         } else {
-                          controller.setCombinedReportType(value);
+                          controller.reports.setCombinedType(value);
                         }
                       },
               ),
@@ -855,12 +855,12 @@ class _ReportControls extends StatelessWidget {
                 prefixIcon: Icons.people,
                 choices: [
                   const DropdownChoice(value: 0, label: 'Semua Pelanggan'),
-                  for (final customer in controller.customers)
+                  for (final customer in controller.customers.items)
                     DropdownChoice(value: customer.id, label: customer.name),
                 ],
                 onChanged: controller.isBusy
                     ? null
-                    : (value) => controller.setReportCustomerFilter(
+                    : (value) => controller.reports.setCustomerFilter(
                         value == 0 ? null : value,
                         kind: reportKind,
                       ),
@@ -883,7 +883,7 @@ class _ReportControls extends StatelessWidget {
                 ],
                 onChanged: controller.isBusy
                     ? null
-                    : (value) => controller.setReportSupplierFilter(
+                    : (value) => controller.reports.setSupplierFilter(
                         value == 0 ? null : value,
                         kind: reportKind,
                       ),
@@ -909,11 +909,11 @@ class _ReportControls extends StatelessWidget {
               onChanged: controller.isBusy
                   ? null
                   : (value) async {
-                      await controller.setReportCategoryFilter(
+                      await controller.reports.setCategoryFilter(
                         value == 0 ? null : value,
                         kind: reportKind,
                       );
-                      await controller.setReportProductFilter(
+                      await controller.reports.setProductFilter(
                         null,
                         kind: reportKind,
                       );
@@ -929,14 +929,14 @@ class _ReportControls extends StatelessWidget {
                 prefixIcon: Icons.inventory_2,
                 choices: [
                   const DropdownChoice(value: 0, label: 'Semua Item'),
-                  for (final product in controller.products.where(
+                  for (final product in controller.products.items.where(
                     (product) => product.categoryId == selectedCategoryId,
                   ))
                     DropdownChoice(value: product.id, label: product.name),
                 ],
                 onChanged: controller.isBusy
                     ? null
-                    : (value) => controller.setReportProductFilter(
+                    : (value) => controller.reports.setProductFilter(
                         value == 0 ? null : value,
                         kind: reportKind,
                       ),
@@ -973,14 +973,14 @@ class _ReportControls extends StatelessWidget {
       firstDate: DateTime(now.year - 3),
       lastDate: DateTime(now.year + 1),
       initialDateRange:
-          controller.customReportRangeFor(reportKind) ??
+          controller.reports.customReportRangeFor(reportKind) ??
           DateTimeRange(
             start: DateTime(now.year, now.month, now.day),
             end: DateTime(now.year, now.month, now.day),
           ),
     );
     if (selected != null) {
-      controller.setCustomReportRange(selected, kind: reportKind);
+      controller.reports.setCustomRange(selected, kind: reportKind);
     }
   }
 
@@ -1162,7 +1162,7 @@ class _ReportContent extends StatelessWidget {
             child: Card(
               child: ListTile(
                 onTap: () {
-                  final detail = controller.transactions
+                  final detail = controller.reports.transactions
                       .where((item) => item.id == transaction.id)
                       .firstOrNull;
                   showDialog<void>(

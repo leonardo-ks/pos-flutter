@@ -28,10 +28,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
       _loadedFeatureData = true;
       final controller = AppScope.of(context);
       Future.microtask(() async {
-        await controller.loadFeatureRecords('/api/stock');
-        await controller.loadFeatureRecords('/api/locations');
-        await controller.loadFeatureRecords('/api/product-categories');
-        await controller.loadFeatureRecords('/api/suppliers');
+        await controller.featureRecords.load('/api/stock');
+        await controller.featureRecords.load('/api/locations');
+        await controller.featureRecords.load('/api/product-categories');
+        await controller.featureRecords.load('/api/suppliers');
       });
     }
   }
@@ -45,11 +45,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final canCreate = controller.canCreateMenu('inventory');
-    final canUpdate = controller.canUpdateMenu('inventory');
-    final canDelete = controller.canDeleteMenu('inventory');
-    final products = controller.products;
-    final stockRecords = controller.featureRecords('/api/stock');
+    final canCreate = controller.session.canCreateMenu('inventory');
+    final canUpdate = controller.session.canUpdateMenu('inventory');
+    final canDelete = controller.session.canDeleteMenu('inventory');
+    final products = controller.products.items;
+    final stockRecords = controller.featureRecords.records('/api/stock');
 
     return DefaultTabController(
       length: 3,
@@ -77,7 +77,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               controller: _searchController,
                               onChanged: (value) {
                                 setState(() => _query = value);
-                                controller.setProductSearch(value);
+                                controller.products.setSearch(value);
                               },
                               decoration: InputDecoration(
                                 prefixIcon: const Icon(Icons.search),
@@ -90,7 +90,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                         onPressed: () {
                                           _searchController.clear();
                                           setState(() => _query = '');
-                                          controller.setProductSearch('');
+                                          controller.products.setSearch('');
                                         },
                                         icon: const Icon(Icons.close),
                                       ),
@@ -130,16 +130,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                         child: LayoutBuilder(
                           builder: (context, constraints) {
-                            final categories = controller.featureRecords(
+                            final categories = controller.featureRecords.records(
                               '/api/product-categories',
                             );
-                            final locations = controller.featureRecords(
+                            final locations = controller.featureRecords.records(
                               '/api/locations',
                             );
                             final compact = constraints.maxWidth < 820;
                             final groupFilter = SearchableDropdown<int?>(
                               label: 'Grup Produk',
-                              value: controller.selectedProductCategoryFilterId,
+                              value: controller.products.categoryFilterId,
                               prefixIcon: Icons.category,
                               choices: [
                                 const DropdownChoice<int?>(
@@ -157,11 +157,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               ],
                               onChanged: controller.isBusy
                                   ? null
-                                  : controller.setProductCategoryFilter,
+                                  : controller.products.setCategoryFilter,
                             );
                             final stockFilter = SearchableDropdown<String>(
                               label: 'Stok',
-                              value: controller.selectedProductStockFilter,
+                              value: controller.products.stockFilter,
                               prefixIcon: Icons.inventory_2,
                               choices: const [
                                 DropdownChoice(
@@ -183,11 +183,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               ],
                               onChanged: controller.isBusy
                                   ? null
-                                  : controller.setProductStockFilter,
+                                  : controller.products.setStockFilter,
                             );
                             final locationFilter = SearchableDropdown<int?>(
                               label: 'Lokasi/Gudang',
-                              value: controller.selectedProductLocationFilterId,
+                              value: controller.products.locationFilterId,
                               prefixIcon: Icons.warehouse,
                               choices: [
                                 const DropdownChoice<int?>(
@@ -205,7 +205,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               ],
                               onChanged: controller.isBusy
                                   ? null
-                                  : controller.setProductLocationFilter,
+                                  : controller.products.setLocationFilter,
                             );
                             if (compact) {
                               return Column(
@@ -280,7 +280,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                       },
                                     ),
                                   ),
-                                  if (controller.canLoadMoreProducts)
+                                  if (controller.products.canLoadMore)
                                     SliverToBoxAdapter(
                                       child: Padding(
                                         padding: const EdgeInsets.fromLTRB(
@@ -295,7 +295,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                             child: OutlinedButton.icon(
                                               onPressed: controller.isBusy
                                                   ? null
-                                                  : controller.loadMoreProducts,
+                                                  : controller.products.loadMore,
                                               icon: const Icon(
                                                 Icons.expand_more,
                                               ),
@@ -375,7 +375,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final categoryId = TextEditingController(
       text: product?.categoryId?.toString() ?? '',
     );
-    final locations = controller.featureRecords('/api/locations');
+    final locations = controller.featureRecords.records('/api/locations');
     final draftStocks = <_DraftLocationStock>[];
 
     await showDialog<void>(
@@ -451,14 +451,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       _ReferenceDropdown(
                         controller: supplierId,
                         label: 'Suplier',
-                        records: controller.featureRecords('/api/suppliers'),
+                        records: controller.featureRecords.records('/api/suppliers'),
                         labelKeys: const ['nama', 'kode'],
                       ),
                       const SizedBox(height: 10),
                       _ReferenceDropdown(
                         controller: categoryId,
                         label: 'Grup Produk',
-                        records: controller.featureRecords(
+                        records: controller.featureRecords.records(
                           '/api/product-categories',
                         ),
                         labelKeys: const ['nama', 'kode'],
@@ -546,14 +546,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     ? totalStock
                     : _stocksForProduct(
                         product,
-                        controller.featureRecords('/api/stock'),
+                        controller.featureRecords.records('/api/stock'),
                       ).fold<int>(
                         0,
                         (total, record) =>
                             total +
                             ((record.values['stock'] as num?)?.toInt() ?? 0),
                       );
-                final saved = await controller.saveProduct(
+                final saved = await controller.products.save(
                   Product(
                     id: product?.id ?? 0,
                     name: name.text.trim().isEmpty
@@ -572,13 +572,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 if (product == null && saved != null) {
                   for (final entry in stockByLocation.entries) {
                     if (entry.value <= 0) continue;
-                    await controller.saveFeatureRecord('/api/stock', {
+                    await controller.featureRecords.save('/api/stock', {
                       'product_id': saved.id,
                       'location_id': entry.key,
                       'stock': entry.value,
                     });
                   }
-                  await controller.loadFeatureRecords('/api/stock');
+                  await controller.featureRecords.load('/api/stock');
                 }
                 if (dialogContext.mounted) Navigator.of(dialogContext).pop();
               },
@@ -603,16 +603,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
           animation: controller,
           builder: (context, _) {
             final latestProduct =
-                controller.products
+                controller.products.items
                     .where((item) => item.id == product.id)
                     .firstOrNull ??
                 product;
             final selectedLocationId =
-                controller.selectedProductLocationFilterId;
+                controller.products.locationFilterId;
             final latestStocks =
                 _stocksForProduct(
                       latestProduct,
-                      controller.featureRecords('/api/stock'),
+                      controller.featureRecords.records('/api/stock'),
                     )
                     .where((stock) {
                       if (selectedLocationId == null) return true;
@@ -714,7 +714,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       ),
     );
     if (confirmed == true) {
-      await controller.deleteProduct(product);
+      await controller.products.remove(product);
     }
   }
 
@@ -730,7 +730,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         .whereType<int>()
         .toSet();
     final locations = controller
-        .featureRecords('/api/locations')
+        .featureRecords.records('/api/locations')
         .where((location) => !usedLocationIds.contains(location.id))
         .toList(growable: false);
     final locationController = TextEditingController(
@@ -877,12 +877,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
     required int stock,
   }) async {
     final controller = AppScope.of(context);
-    await controller.saveFeatureRecord('/api/stock', {
+    await controller.featureRecords.save('/api/stock', {
       'product_id': productId,
       'location_id': locationId,
       'stock': stock,
     });
-    await controller.loadFeatureRecords('/api/stock');
+    await controller.featureRecords.load('/api/stock');
   }
 }
 
@@ -1146,18 +1146,18 @@ class _ProductStockEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    if (!controller.canViewMenu('inventory')) return const SizedBox.shrink();
+    if (!controller.session.canViewMenu('inventory')) return const SizedBox.shrink();
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
         final latestProduct =
-            controller.products
+            controller.products.items
                 .where((item) => item.id == product.id)
                 .firstOrNull ??
             product;
         final stocks = stocksForProduct(
           latestProduct,
-          controller.featureRecords('/api/stock'),
+          controller.featureRecords.records('/api/stock'),
         );
         final visibleStocks = stocks.where(hasStock).toList(growable: false);
         return Column(
@@ -1171,7 +1171,7 @@ class _ProductStockEditor extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                if (controller.canCreateMenu('inventory'))
+                if (controller.session.canCreateMenu('inventory'))
                   IconButton.filledTonal(
                     tooltip: 'Tambah Stok Lokasi/Gudang',
                     onPressed: controller.isBusy
@@ -1190,7 +1190,7 @@ class _ProductStockEditor extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: _WarehouseStockTile(
                     record: stock,
-                    canManage: controller.canUpdateMenu('inventory'),
+                    canManage: controller.session.canUpdateMenu('inventory'),
                     onSave: (value) => onSaveStock(
                       (stock.values['location_id'] as num).toInt(),
                       value,

@@ -30,7 +30,7 @@ class _PosKasirAppState extends State<PosKasirApp> {
         home: AnimatedBuilder(
           animation: _controller,
           builder: (context, _) {
-            if (!_controller.isLoggedIn) return const LoginScreen();
+            if (!_controller.session.isLoggedIn) return const LoginScreen();
             return const HomeShell();
           },
         ),

@@ -34,8 +34,8 @@ class _CustomerScreenState extends State<CustomerScreen> {
       _loadedDiscounts = true;
       final controller = AppScope.of(context);
       Future.microtask(() async {
-        await controller.loadFeatureRecords('/api/product-categories');
-        await controller.loadFeatureRecords('/api/customer-group-discounts');
+        await controller.featureRecords.load('/api/product-categories');
+        await controller.featureRecords.load('/api/customer-group-discounts');
       });
     }
   }
@@ -43,8 +43,8 @@ class _CustomerScreenState extends State<CustomerScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final customers = controller.customers;
-    if (!controller.canViewMenu('customers')) {
+    final customers = controller.customers.items;
+    if (!controller.session.canViewMenu('customers')) {
       return const EmptyState(
         icon: Icons.lock,
         title: 'Akses Ditolak',
@@ -76,7 +76,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                               controller: _searchController,
                               onChanged: (value) {
                                 setState(() => _query = value);
-                                controller.searchCustomers(value);
+                                controller.customers.search(value);
                               },
                               decoration: InputDecoration(
                                 prefixIcon: const Icon(Icons.search),
@@ -88,7 +88,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                                         onPressed: () {
                                           _searchController.clear();
                                           setState(() => _query = '');
-                                          controller.searchCustomers('');
+                                          controller.customers.search('');
                                         },
                                         icon: const Icon(Icons.close),
                                       ),
@@ -97,13 +97,13 @@ class _CustomerScreenState extends State<CustomerScreen> {
                             final addButton = FilledButton.icon(
                               onPressed:
                                   controller.isBusy ||
-                                      !controller.canCreateMenu('customers')
+                                      !controller.session.canCreateMenu('customers')
                                   ? null
                                   : () => _showCustomerDialog(context),
                               icon: const Icon(Icons.person_add),
                               label: const Text('Pelanggan'),
                             );
-                            if (!controller.canCreateMenu('customers')) {
+                            if (!controller.session.canCreateMenu('customers')) {
                               return search;
                             }
                             if (constraints.maxWidth < 560) {
@@ -137,7 +137,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                                 padding: const EdgeInsets.all(16),
                                 itemCount:
                                     customers.length +
-                                    (controller.canLoadMoreCustomers ? 1 : 0),
+                                    (controller.customers.canLoadMore ? 1 : 0),
                                 separatorBuilder: (context, index) =>
                                     const SizedBox(height: 10),
                                 itemBuilder: (context, index) {
@@ -148,8 +148,8 @@ class _CustomerScreenState extends State<CustomerScreen> {
                                         child: OutlinedButton.icon(
                                           onPressed: controller.isBusy
                                               ? null
-                                              : () => controller
-                                                    .loadMoreCustomers(
+                                              : () => controller.customers
+                                                    .loadMore(
                                                       query: _query,
                                                     ),
                                           icon: const Icon(Icons.expand_more),
@@ -177,7 +177,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                                         crossAxisAlignment:
                                             WrapCrossAlignment.center,
                                         children: [
-                                          if (controller.canUpdateMenu(
+                                          if (controller.session.canUpdateMenu(
                                             'customers',
                                           ))
                                             IconButton(
@@ -189,7 +189,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                                                   ),
                                               icon: const Icon(Icons.edit),
                                             ),
-                                          if (controller.canDeleteMenu(
+                                          if (controller.session.canDeleteMenu(
                                             'customers',
                                           ))
                                             IconButton(
@@ -271,7 +271,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
       ),
     );
     if (confirmed == true) {
-      await controller.deleteCustomer(customer);
+      await controller.customers.remove(customer);
     }
   }
 
@@ -319,7 +319,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
             ),
             FilledButton(
               onPressed: () async {
-                await controller.saveCustomer(
+                await controller.customers.save(
                   Customer(
                     id: customer?.id ?? 0,
                     name: name.text.trim().isEmpty
@@ -375,9 +375,9 @@ class _CustomerDiscountTabState extends State<_CustomerDiscountTab> {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final customers = controller.customers
+    final customers = controller.customers.items
         .where((customer) {
-          final hasDiscount = controller.customerGroupDiscounts.any(
+          final hasDiscount = controller.featureRecords.customerGroupDiscounts.any(
             (record) =>
                 (record.values['customer_id'] as num?)?.toInt() == customer.id,
           );
@@ -387,7 +387,7 @@ class _CustomerDiscountTabState extends State<_CustomerDiscountTab> {
               customer.phone.contains(_query);
         })
         .toList(growable: false);
-    final canCreate = controller.canCreateMenu('customers');
+    final canCreate = controller.session.canCreateMenu('customers');
 
     return Column(
       children: [
@@ -400,7 +400,7 @@ class _CustomerDiscountTabState extends State<_CustomerDiscountTab> {
                   controller: _search,
                   onChanged: (value) {
                     setState(() => _query = value);
-                    controller.searchCustomers(value);
+                    controller.customers.search(value);
                   },
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search),
@@ -412,7 +412,7 @@ class _CustomerDiscountTabState extends State<_CustomerDiscountTab> {
                             onPressed: () {
                               _search.clear();
                               setState(() => _query = '');
-                              controller.searchCustomers('');
+                              controller.customers.search('');
                             },
                             icon: const Icon(Icons.close),
                           ),
@@ -443,7 +443,7 @@ class _CustomerDiscountTabState extends State<_CustomerDiscountTab> {
                   padding: const EdgeInsets.all(16),
                   itemCount:
                       customers.length +
-                      (controller.canLoadMoreCustomers ? 1 : 0),
+                      (controller.customers.canLoadMore ? 1 : 0),
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     if (index == customers.length) {
@@ -453,7 +453,7 @@ class _CustomerDiscountTabState extends State<_CustomerDiscountTab> {
                           child: OutlinedButton.icon(
                             onPressed: controller.isBusy
                                 ? null
-                                : () => controller.loadMoreCustomers(
+                                : () => controller.customers.loadMore(
                                     query: _query,
                                   ),
                             icon: const Icon(Icons.expand_more),
@@ -463,7 +463,7 @@ class _CustomerDiscountTabState extends State<_CustomerDiscountTab> {
                       );
                     }
                     final customer = customers[index];
-                    final discountCount = controller.customerGroupDiscounts
+                    final discountCount = controller.featureRecords.customerGroupDiscounts
                         .where(
                           (record) =>
                               (record.values['customer_id'] as num?)?.toInt() ==
@@ -530,8 +530,8 @@ class _CustomerDiscountDialogState extends State<_CustomerDiscountDialog> {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final customers = controller.customers;
-    final categories = controller.featureRecords('/api/product-categories');
+    final customers = controller.customers.items;
+    final categories = controller.featureRecords.records('/api/product-categories');
     _syncDrafts(controller);
 
     return AlertDialog(
@@ -569,7 +569,7 @@ class _CustomerDiscountDialogState extends State<_CustomerDiscountDialog> {
                   onPressed:
                       _customerId == null ||
                           _drafts.length >= categories.length ||
-                          !controller.canCreateMenu('customers')
+                          !controller.session.canCreateMenu('customers')
                       ? null
                       : () async {
                           final draft = await _showAddCategoryDialog(
@@ -641,7 +641,7 @@ class _CustomerDiscountDialogState extends State<_CustomerDiscountDialog> {
   void _syncDrafts(AppController controller) {
     final customerId = _customerId;
     if (customerId == null || _loadedCustomerId == customerId) return;
-    final records = controller.customerGroupDiscounts
+    final records = controller.featureRecords.customerGroupDiscounts
         .where(
           (record) =>
               (record.values['customer_id'] as num?)?.toInt() == customerId,
@@ -746,7 +746,7 @@ class _CustomerDiscountDialogState extends State<_CustomerDiscountDialog> {
     final customerId = _customerId;
     if (customerId == null) return;
     final controller = AppScope.of(context);
-    await controller.saveCustomerGroupDiscounts([
+    await controller.featureRecords.saveCustomerGroupDiscounts([
       for (final draft in _drafts)
         {
           'id': draft.id,

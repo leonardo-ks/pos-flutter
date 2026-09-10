@@ -16,9 +16,9 @@ class ReturnsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
     final tabs = <AppTabItem>[
-      if (controller.canViewMenu('purchase-returns'))
+      if (controller.session.canViewMenu('purchase-returns'))
         const AppTabItem(label: 'Retur Pembelian', child: _PurchaseReturnTab()),
-      if (controller.canViewMenu('sales-returns'))
+      if (controller.session.canViewMenu('sales-returns'))
         const AppTabItem(label: 'Retur Penjualan', child: _SalesReturnTab()),
     ];
 
@@ -63,8 +63,8 @@ class _PurchaseReturnTabState extends State<_PurchaseReturnTab> {
     _loaded = true;
     final controller = AppScope.of(context);
     Future.microtask(() async {
-      await controller.loadFeatureRecords('/api/suppliers');
-      await controller.loadFeatureRecords('/api/product-categories');
+      await controller.featureRecords.load('/api/suppliers');
+      await controller.featureRecords.load('/api/product-categories');
       await controller.refreshData();
       await _loadReturns();
     });
@@ -73,9 +73,9 @@ class _PurchaseReturnTabState extends State<_PurchaseReturnTab> {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final rows = controller.featureRecords('/api/purchase-returns');
-    final canCreate = controller.canCreateMenu('purchase-returns');
-    final canUpdate = controller.canUpdateMenu('purchase-returns');
+    final rows = controller.featureRecords.records('/api/purchase-returns');
+    final canCreate = controller.session.canCreateMenu('purchase-returns');
+    final canUpdate = controller.session.canUpdateMenu('purchase-returns');
 
     return _ReturnList(
       search: _search,
@@ -93,11 +93,11 @@ class _PurchaseReturnTabState extends State<_PurchaseReturnTab> {
             ),
       rows: rows,
       canUpdate: canUpdate,
-      canLoadMore: controller.canLoadMoreFeatureRecords(
+      canLoadMore: controller.featureRecords.canLoadMore(
         '/api/purchase-returns',
         query: _returnQuery(),
       ),
-      onLoadMore: () => controller.loadMoreFeatureRecords(
+      onLoadMore: () => controller.featureRecords.loadMore(
         '/api/purchase-returns',
         query: _returnQuery(),
       ),
@@ -113,7 +113,7 @@ class _PurchaseReturnTabState extends State<_PurchaseReturnTab> {
         partnerValue: _supplierId,
         partnerChoices: [
           const DropdownChoice(value: 0, label: 'Semua Suplier'),
-          for (final supplier in controller.featureRecords('/api/suppliers'))
+          for (final supplier in controller.featureRecords.records('/api/suppliers'))
             DropdownChoice(
               value: supplier.id,
               label: supplier.label(const ['nama', 'kode']),
@@ -121,7 +121,7 @@ class _PurchaseReturnTabState extends State<_PurchaseReturnTab> {
         ],
         categoryValue: _categoryId,
         productValue: _productId,
-        products: controller.products
+        products: controller.products.items
             .where(
               (product) =>
                   _categoryId == 0 || product.categoryId == _categoryId,
@@ -133,7 +133,7 @@ class _PurchaseReturnTabState extends State<_PurchaseReturnTab> {
             .toList(growable: false),
         categoryChoices: [
           const DropdownChoice(value: 0, label: 'Semua Grup'),
-          for (final category in controller.featureRecords(
+          for (final category in controller.featureRecords.records(
             '/api/product-categories',
           ))
             DropdownChoice(
@@ -192,7 +192,7 @@ class _PurchaseReturnTabState extends State<_PurchaseReturnTab> {
   }
 
   Future<void> _loadReturns() {
-    return AppScope.of(context).loadFeatureRecords(
+    return AppScope.of(context).featureRecords.load(
       '/api/purchase-returns',
       query: _returnQuery(),
       force: true,
@@ -251,11 +251,11 @@ class _SalesReturnTabState extends State<_SalesReturnTab> {
     _loaded = true;
     final controller = AppScope.of(context);
     Future.microtask(() async {
-      if (controller.canCreateMenu('sales-returns') ||
-          controller.canUpdateMenu('sales-returns')) {
+      if (controller.session.canCreateMenu('sales-returns') ||
+          controller.session.canUpdateMenu('sales-returns')) {
         await controller.refreshData();
       }
-      await controller.loadFeatureRecords('/api/product-categories');
+      await controller.featureRecords.load('/api/product-categories');
       await _loadReturns();
     });
   }
@@ -263,9 +263,9 @@ class _SalesReturnTabState extends State<_SalesReturnTab> {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final rows = controller.featureRecords('/api/sales-returns');
-    final canCreate = controller.canCreateMenu('sales-returns');
-    final canUpdate = controller.canUpdateMenu('sales-returns');
+    final rows = controller.featureRecords.records('/api/sales-returns');
+    final canCreate = controller.session.canCreateMenu('sales-returns');
+    final canUpdate = controller.session.canUpdateMenu('sales-returns');
 
     return _ReturnList(
       search: _search,
@@ -283,11 +283,11 @@ class _SalesReturnTabState extends State<_SalesReturnTab> {
             ),
       rows: rows,
       canUpdate: canUpdate,
-      canLoadMore: controller.canLoadMoreFeatureRecords(
+      canLoadMore: controller.featureRecords.canLoadMore(
         '/api/sales-returns',
         query: _returnQuery(),
       ),
-      onLoadMore: () => controller.loadMoreFeatureRecords(
+      onLoadMore: () => controller.featureRecords.loadMore(
         '/api/sales-returns',
         query: _returnQuery(),
       ),
@@ -303,12 +303,12 @@ class _SalesReturnTabState extends State<_SalesReturnTab> {
         partnerValue: _customerId,
         partnerChoices: [
           const DropdownChoice(value: 0, label: 'Semua Pelanggan'),
-          for (final customer in controller.customers)
+          for (final customer in controller.customers.items)
             DropdownChoice(value: customer.id, label: customer.name),
         ],
         categoryValue: _categoryId,
         productValue: _productId,
-        products: controller.products
+        products: controller.products.items
             .where(
               (product) =>
                   _categoryId == 0 || product.categoryId == _categoryId,
@@ -320,7 +320,7 @@ class _SalesReturnTabState extends State<_SalesReturnTab> {
             .toList(growable: false),
         categoryChoices: [
           const DropdownChoice(value: 0, label: 'Semua Grup'),
-          for (final category in controller.featureRecords(
+          for (final category in controller.featureRecords.records(
             '/api/product-categories',
           ))
             DropdownChoice(
@@ -379,7 +379,7 @@ class _SalesReturnTabState extends State<_SalesReturnTab> {
   }
 
   Future<void> _loadReturns() {
-    return AppScope.of(context).loadFeatureRecords(
+    return AppScope.of(context).featureRecords.load(
       '/api/sales-returns',
       query: _returnQuery(),
       force: true,
@@ -802,7 +802,7 @@ class _PurchaseReturnDialogState extends State<_PurchaseReturnDialog> {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final purchases = controller.featureRecords('/api/purchases');
+    final purchases = controller.featureRecords.records('/api/purchases');
     final purchase = purchases
         .where((record) => record.id == _purchaseId)
         .firstOrNull;
@@ -870,13 +870,13 @@ class _PurchaseReturnDialogState extends State<_PurchaseReturnDialog> {
       'mode': 'return-picker',
       if (trimmed.isNotEmpty) 'search': trimmed,
     };
-    await controller.loadFeatureRecords(
+    await controller.featureRecords.load(
       '/api/purchases',
       query: query,
       force: true,
     );
     if (!mounted) return;
-    final purchases = controller.featureRecords('/api/purchases');
+    final purchases = controller.featureRecords.records('/api/purchases');
     final preferredId =
         _purchaseId ?? (widget.record?.values['purchase_id'] as num?)?.toInt();
     final nextId = purchases.any((record) => record.id == preferredId)
@@ -923,7 +923,7 @@ class _PurchaseReturnDialogState extends State<_PurchaseReturnDialog> {
         .where((item) => (item['quantity'] as int) > 0)
         .toList(growable: false);
     if (items.isEmpty) return;
-    await controller.saveFeatureRecord('/api/purchase-returns', {
+    await controller.featureRecords.save('/api/purchase-returns', {
       'purchase_id': purchase.id,
       'supplier_id': purchase.values['supplier_id'],
       'items': items,
@@ -977,7 +977,7 @@ class _SalesReturnDialogState extends State<_SalesReturnDialog> {
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final transactions = controller.featureRecords('/api/transactions');
+    final transactions = controller.featureRecords.records('/api/transactions');
     final transaction = transactions
         .where((record) => record.id == _transactionId)
         .firstOrNull;
@@ -1045,13 +1045,13 @@ class _SalesReturnDialogState extends State<_SalesReturnDialog> {
       'mode': 'return-picker',
       if (trimmed.isNotEmpty) 'search': trimmed,
     };
-    await controller.loadFeatureRecords(
+    await controller.featureRecords.load(
       '/api/transactions',
       query: query,
       force: true,
     );
     if (!mounted) return;
-    final transactions = controller.featureRecords('/api/transactions');
+    final transactions = controller.featureRecords.records('/api/transactions');
     final preferredId =
         _transactionId ??
         (widget.record?.values['transaction_id'] as num?)?.toInt();
@@ -1099,7 +1099,7 @@ class _SalesReturnDialogState extends State<_SalesReturnDialog> {
         .where((item) => (item['quantity'] as int) > 0)
         .toList(growable: false);
     if (items.isEmpty) return;
-    await controller.saveFeatureRecord('/api/sales-returns', {
+    await controller.featureRecords.save('/api/sales-returns', {
       'transaction_id': transaction.id,
       'customer_id': transaction.values['customer_id'],
       'items': items,

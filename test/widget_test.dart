@@ -15,8 +15,8 @@ void main() {
     expect(find.text('Kasir'), findsWidgets);
     expect(find.text('Master'), findsWidgets);
     expect(find.text('Laporan'), findsNothing);
-    controller.selectSection(AppSection.reports);
-    expect(controller.selectedSection, AppSection.pos);
+    controller.navigation.selectSection(AppSection.reports);
+    expect(controller.navigation.selectedSection, AppSection.pos);
   });
 
   testWidgets('Manajer dapat membuka laporan', (tester) async {
@@ -39,12 +39,12 @@ void main() {
     await controller.loginAsRoleForTest(UserRole.cashier);
     await tester.pumpWidget(PosKasirApp(controller: controller));
 
-    controller.selectCustomer(controller.customers.first);
-    controller.addToCart(controller.products.first);
+    controller.customers.select(controller.customers.items.first);
+    controller.cart.addToCart(controller.products.items.first);
     await tester.pumpAndSettle();
 
-    expect(controller.discountAmount, 1800);
-    expect(controller.grandTotal, 16200);
+    expect(controller.cart.discountAmount, 1800);
+    expect(controller.cart.grandTotal, 16200);
   });
 
   testWidgets('Checkout mengurangi stok dan membuat transaksi', (tester) async {
@@ -61,8 +61,8 @@ void main() {
     await tester.tap(find.byKey(const Key('login-submit')));
     await tester.pumpAndSettle();
 
-    final initialTransactions = controller.transactions.length;
-    final initialStock = controller.products.first.stock;
+    final initialTransactions = controller.reports.transactions.length;
+    final initialStock = controller.products.items.first.stock;
 
     await tester.tap(find.byKey(const Key('add-product-1')));
     await tester.pumpAndSettle();
@@ -75,7 +75,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Transaksi Berhasil'), findsOneWidget);
-    expect(controller.transactions.length, initialTransactions + 1);
-    expect(controller.products.first.stock, initialStock - 1);
+    expect(controller.reports.transactions.length, initialTransactions + 1);
+    expect(controller.products.items.first.stock, initialStock - 1);
   });
 }

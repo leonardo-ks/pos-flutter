@@ -44,3 +44,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# graphify knowledge-graph output (not part of the app)
+graphify-out/
+lib/graphify-out/
