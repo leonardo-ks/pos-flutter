@@ -31,8 +31,9 @@ jobs:
       - name: Validate backend URL
         run: test -n "$API_BASE_URL"
 
-      - name: Pull Vercel project
-        run: npx vercel@latest pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      # No `vercel pull` step: the web build takes its API URL from the
+      # --dart-define below (not Vercel env vars), and the deploy step is
+      # self-contained (explicit project link + token).
 
       - name: Analyze
         run: flutter analyze
@@ -43,8 +44,16 @@ jobs:
       - name: Build web demo
         run: flutter build web --release --no-wasm-dry-run --dart-define=API_BASE_URL=${{ env.API_BASE_URL }}
 
-      - name: Copy Vercel config
-        run: cp vercel.json build/web/vercel.json
+      - name: Prepare deploy directory
+        run: |
+          cp vercel.json build/web/vercel.json
+          # Link the output dir to the pos-flutter project so `vercel deploy
+          # build/web` targets it. Without this, Vercel derives the project name
+          # from the directory ("web") and creates a stray project.
+          mkdir -p build/web/.vercel
+          printf '{"projectId":"%s","orgId":"%s"}' \
+            "${{ secrets.VERCEL_PROJECT_ID }}" "${{ secrets.VERCEL_ORG_ID }}" \
+            > build/web/.vercel/project.json
 
       - name: Deploy to Vercel
         run: npx vercel@latest deploy build/web --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
