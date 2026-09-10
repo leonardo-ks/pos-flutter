@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_initializing_formals
+// (private fields can't be named parameters, so the initializer list is required)
 import 'package:flutter/foundation.dart';
 
 import '../../customers/models/customer.dart';
@@ -11,15 +13,10 @@ class CartController extends ChangeNotifier {
     required Customer? Function() selectedCustomer,
     required List<FeatureRecord> Function() customerGroupDiscounts,
     required bool Function() isBusy,
-  })  :
-        // ignore: prefer_initializing_formals
-        _liveProducts = liveProducts,
-        // ignore: prefer_initializing_formals
-        _selectedCustomer = selectedCustomer,
-        // ignore: prefer_initializing_formals
-        _customerGroupDiscounts = customerGroupDiscounts,
-        // ignore: prefer_initializing_formals
-        _isBusy = isBusy;
+  }) : _liveProducts = liveProducts,
+       _selectedCustomer = selectedCustomer,
+       _customerGroupDiscounts = customerGroupDiscounts,
+       _isBusy = isBusy;
 
   final List<Product> Function() _liveProducts;
   final Customer? Function() _selectedCustomer;
@@ -37,7 +34,8 @@ class CartController extends ChangeNotifier {
   List<CartLine> get lines {
     return _cart.entries
         .map((entry) {
-          final product = _liveProducts()
+          final product =
+              _liveProducts()
                   .where((item) => item.id == entry.key)
                   .firstOrNull ??
               _cartProducts[entry.key];

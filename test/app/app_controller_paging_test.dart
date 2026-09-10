@@ -9,32 +9,34 @@ import 'package:pos_flutter/src/inventory/repositories/product_repository.dart';
 
 import 'fakes.dart';
 
-Product _product(int id, {String name = 'P', int stock = 5}) => Product(
-      id: id,
-      name: name,
-      sku: 'SKU-$id',
-      price: 1000,
-      stock: stock,
-    );
+Product _product(int id, {String name = 'P', int stock = 5}) =>
+    Product(id: id, name: name, sku: 'SKU-$id', price: 1000, stock: stock);
 
 void main() {
-  test('loadMoreProducts appends and advances the cursor, then stops', () async {
-    final p1 = _product(1, name: 'One');
-    final p2 = _product(2, name: 'Two');
-    final products = FakeProductRepository(
-      pages: [PagedProducts(rows: [p1], nextCursor: 'c1')],
-      morePages: [PagedProducts(rows: [p2], nextCursor: null)],
-    );
-    final c = AppController(productRepository: products);
-    await c.loginAsRoleForTest(UserRole.manager); // refreshData -> page 1
+  test(
+    'loadMoreProducts appends and advances the cursor, then stops',
+    () async {
+      final p1 = _product(1, name: 'One');
+      final p2 = _product(2, name: 'Two');
+      final products = FakeProductRepository(
+        pages: [
+          PagedProducts(rows: [p1], nextCursor: 'c1'),
+        ],
+        morePages: [
+          PagedProducts(rows: [p2], nextCursor: null),
+        ],
+      );
+      final c = AppController(productRepository: products);
+      await c.loginAsRoleForTest(UserRole.manager); // refreshData -> page 1
 
-    expect(c.products.canLoadMore, isTrue);
-    await c.products.loadMore();
-    expect(c.products.items.map((p) => p.id), containsAll(<int>[1, 2]));
-    expect(c.products.canLoadMore, isFalse);
-    await c.products.loadMore(); // no-op past the end
-    expect(products.fetchMoreCount, 1);
-  });
+      expect(c.products.canLoadMore, isTrue);
+      await c.products.loadMore();
+      expect(c.products.items.map((p) => p.id), containsAll(<int>[1, 2]));
+      expect(c.products.canLoadMore, isFalse);
+      await c.products.loadMore(); // no-op past the end
+      expect(products.fetchMoreCount, 1);
+    },
+  );
 
   test('setProductSearch drops a stale response', () async {
     // The gated call is the FIRST *search* call ('a'); login already consumed

@@ -5,8 +5,11 @@ import '../../inventory/repositories/product_repository.dart';
 import '../async_guard.dart';
 
 class ProductController extends ChangeNotifier {
-  ProductController(this._guard, this._repo, {List<Product> initialItems = const []})
-      : _items = initialItems;
+  ProductController(
+    this._guard,
+    this._repo, {
+    List<Product> initialItems = const [],
+  }) : _items = initialItems;
 
   final AsyncGuard _guard;
   final ProductRepository _repo;

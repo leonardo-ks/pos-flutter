@@ -5,8 +5,11 @@ import '../../customers/repositories/customer_repository.dart';
 import '../async_guard.dart';
 
 class CustomerController extends ChangeNotifier {
-  CustomerController(this._guard, this._repo, {List<Customer> initialItems = const []})
-      : _items = initialItems;
+  CustomerController(
+    this._guard,
+    this._repo, {
+    List<Customer> initialItems = const [],
+  }) : _items = initialItems;
 
   final AsyncGuard _guard;
   final CustomerRepository _repo;

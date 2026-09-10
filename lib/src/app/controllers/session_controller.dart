@@ -6,9 +6,11 @@ import '../../shared/models/feature_record.dart';
 import '../app_controller.dart' show AppSection;
 
 class SessionController extends ChangeNotifier {
-  SessionController({required List<FeatureRecord>? Function() rolePermissionRecords})
-      // ignore: prefer_initializing_formals
-      : _rolePermissionRecords = rolePermissionRecords;
+  SessionController({
+    required List<FeatureRecord>? Function() rolePermissionRecords,
+  })
+    // ignore: prefer_initializing_formals
+    : _rolePermissionRecords = rolePermissionRecords;
 
   final List<FeatureRecord>? Function() _rolePermissionRecords;
 
@@ -44,13 +46,15 @@ class SessionController extends ChangeNotifier {
       AppSection.returns =>
         canViewMenu('purchase-returns') || canViewMenu('sales-returns'),
       AppSection.reports => canViewMenu('reports'),
-      AppSection.master => canViewMenu('inventory') ||
-          canViewMenu('customers') ||
-          canViewMenu('suppliers'),
-      AppSection.users => canViewMenu('users') ||
-          canViewMenu('roles') ||
-          canViewMenu('authorization') ||
-          isAdministrator,
+      AppSection.master =>
+        canViewMenu('inventory') ||
+            canViewMenu('customers') ||
+            canViewMenu('suppliers'),
+      AppSection.users =>
+        canViewMenu('users') ||
+            canViewMenu('roles') ||
+            canViewMenu('authorization') ||
+            isAdministrator,
     };
   }
 
@@ -60,7 +64,11 @@ class SessionController extends ChangeNotifier {
     if (permission != null) return permission.values['can_view'] == true;
     return switch (currentUser?.role) {
       UserRole.administrator => true,
-      UserRole.manager => !{'users', 'roles', 'authorization'}.contains(section),
+      UserRole.manager => !{
+        'users',
+        'roles',
+        'authorization',
+      }.contains(section),
       UserRole.cashier => {'pos', 'inventory', 'customers'}.contains(section),
       null => false,
     };
@@ -87,8 +95,11 @@ class SessionController extends ChangeNotifier {
     final records = _rolePermissionRecords();
     if (records == null) return null;
     return records
-        .where((record) =>
-            record.values['role'] == role && record.values['section'] == section)
+        .where(
+          (record) =>
+              record.values['role'] == role &&
+              record.values['section'] == section,
+        )
         .firstOrNull;
   }
 

@@ -91,13 +91,14 @@ class AppController extends ChangeNotifier {
   }
 
   late final SessionController session = SessionController(
-    rolePermissionRecords: () => featureRecords.records('/api/role-permissions'),
+    rolePermissionRecords: () =>
+        featureRecords.records('/api/role-permissions'),
   );
 
   late final NavigationController navigation = NavigationController(
-    canView: canViewSection,
+    canView: session.canViewSection,
     onEnterSection: (section) {
-      if (section == AppSection.reports && canManage) {
+      if (section == AppSection.reports && session.canManage) {
         reports.loadSalesReport(reports.report.range);
         loadGenericReport('all-transactions');
         loadGenericReport('returns');
@@ -124,6 +125,13 @@ class AppController extends ChangeNotifier {
   late final ReportRepository _reportRepository;
   late final FeatureRepository _featureRepository;
 
+  // Sub-controller init order (enforced by the addListener sequence in the
+  // constructor body): products -> featureRecords -> customers -> reports, then
+  // session (late-final inline, touched by the session.addListener call) ->
+  // navigation, then cart last. reports needs featureRecords/customers/session;
+  // cart needs products/customers/featureRecords/_guard; navigation's canView
+  // delegates to session. session's rolePermissionRecords closure reads
+  // featureRecords lazily, so it is safe for session to construct after it.
   late final ProductController products;
   late final FeatureRecordController featureRecords;
   late final CustomerController customers;
@@ -136,11 +144,6 @@ class AppController extends ChangeNotifier {
 
   bool get isBusy => _guard.isBusy;
   String? get errorMessage => _guard.errorMessage;
-
-  AppUser? get currentUser => session.currentUser;
-  bool get isLoggedIn => session.isLoggedIn;
-  bool get canManage => session.canManage;
-  bool canViewSection(AppSection s) => session.canViewSection(s);
 
   AppSection get selectedSection => navigation.selectedSection;
 
@@ -162,7 +165,7 @@ class AppController extends ChangeNotifier {
       await featureRecords.load('/api/suppliers');
       await featureRecords.load('/api/customer-group-discounts');
       await featureRecords.load('/api/role-permissions');
-      if (canManage) {
+      if (session.canManage) {
         await reports.loadSalesReport(reports.report.range);
         await loadGenericReport('all-transactions');
         await loadGenericReport('returns');
@@ -200,7 +203,7 @@ class AppController extends ChangeNotifier {
     final lines = cart.takeLinesForCheckout();
     await _runBusy(() async {
       transaction = await _transactionRepository.createTransaction(
-        user: currentUser!,
+        user: session.currentUser!,
         customer: customers.selected,
         lines: lines,
         paymentMethod: cart.paymentMethod,
@@ -221,7 +224,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> refreshData() async {
-    if (currentUser == null) return;
+    if (session.currentUser == null) return;
     final currentRefresh = _refreshDataFuture;
     if (currentRefresh != null) {
       await currentRefresh;
@@ -240,11 +243,13 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<List<FeatureRecord>> loadGenericReport(String kind, {String? search}) =>
-      featureRecords.loadGenericReport(
-        kind,
-        reports.reportQuery(kind: kind, search: search),
-      );
+  Future<List<FeatureRecord>> loadGenericReport(
+    String kind, {
+    String? search,
+  }) => featureRecords.loadGenericReport(
+    kind,
+    reports.reportQuery(kind: kind, search: search),
+  );
 
   Future<void> loadMoreGenericReport(String kind, {String? search}) =>
       featureRecords.loadMoreGenericReport(

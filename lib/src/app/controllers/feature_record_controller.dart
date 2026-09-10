@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_initializing_formals
+// (private fields can't be named parameters, so the initializer list is required)
 import 'package:flutter/foundation.dart';
 
 import '../../shared/models/feature_record.dart';
@@ -11,11 +13,8 @@ class FeatureRecordController extends ChangeNotifier {
     this._repo, {
     required ProductController products,
     required void Function() onReportsInvalidated,
-  })  :
-        // ignore: prefer_initializing_formals
-        _products = products,
-        // ignore: prefer_initializing_formals
-        _onReportsInvalidated = onReportsInvalidated;
+  }) : _products = products,
+       _onReportsInvalidated = onReportsInvalidated;
 
   final AsyncGuard _guard;
   final FeatureRepository _repo;
@@ -42,12 +41,13 @@ class FeatureRecordController extends ChangeNotifier {
     return _queryKeys[path] == _queryKey(query);
   }
 
-  Future<void> load(String path,
-      {Map<String, String>? query, bool force = false}) async {
+  Future<void> load(
+    String path, {
+    Map<String, String>? query,
+    bool force = false,
+  }) async {
     final cacheKey = _queryKey(query);
-    if (!force &&
-        _records.containsKey(path) &&
-        _queryKeys[path] == cacheKey) {
+    if (!force && _records.containsKey(path) && _queryKeys[path] == cacheKey) {
       return;
     }
     final loadKey = '$path?$cacheKey';
@@ -98,7 +98,11 @@ class FeatureRecordController extends ChangeNotifier {
     }
   }
 
-  Future<FeatureRecord?> save(String path, Map<String, Object?> body, {int? id}) async {
+  Future<FeatureRecord?> save(
+    String path,
+    Map<String, Object?> body, {
+    int? id,
+  }) async {
     FeatureRecord? saved;
     await _guard.run(() async {
       saved = await _repo.save(path, body, id: id);
@@ -122,7 +126,11 @@ class FeatureRecordController extends ChangeNotifier {
     List<int> deleteIds = const [],
   }) async {
     await _guard.run(() async {
-      await _repo.saveBatch('/api/customer-group-discounts', items, deleteIds: deleteIds);
+      await _repo.saveBatch(
+        '/api/customer-group-discounts',
+        items,
+        deleteIds: deleteIds,
+      );
       final page = await _repo.listPage('/api/customer-group-discounts');
       _records['/api/customer-group-discounts'] = page.rows;
       _nextCursors['/api/customer-group-discounts'] = page.nextCursor;
@@ -142,7 +150,9 @@ class FeatureRecordController extends ChangeNotifier {
   }
 
   Future<List<FeatureRecord>> loadGenericReport(
-      String kind, Map<String, String> query) async {
+    String kind,
+    Map<String, String> query,
+  ) async {
     _selectedGenericReport = kind;
     final path = '/api/reports/$kind';
     await load(path, query: query);
@@ -152,7 +162,10 @@ class FeatureRecordController extends ChangeNotifier {
   Future<void> loadMoreGenericReport(String kind, Map<String, String> query) =>
       loadMore('/api/reports/$kind', query: query);
 
-  Future<List<int>?> exportGenericReport(String kind, Map<String, String> query) async {
+  Future<List<int>?> exportGenericReport(
+    String kind,
+    Map<String, String> query,
+  ) async {
     List<int>? bytes;
     await _guard.run(() async {
       bytes = await _repo.exportReport(kind, query);

@@ -7,7 +7,7 @@ void main() {
   test('login populates user and loads master-data feature records', () async {
     final c = AppController();
     await c.login(username: 'manajer', password: 'password1234');
-    expect(c.isLoggedIn, isTrue);
+    expect(c.session.isLoggedIn, isTrue);
     expect(c.featureRecords.records('/api/product-categories'), isNotNull);
     expect(c.featureRecords.customerGroupDiscounts, isNotNull);
   });
@@ -19,7 +19,7 @@ void main() {
     await c.reports.setRange(ReportRange.week, kind: 'all-transactions');
     c.logout();
 
-    expect(c.isLoggedIn, isFalse);
+    expect(c.session.isLoggedIn, isFalse);
     expect(c.selectedSection, AppSection.pos);
     expect(c.cart.lines, isEmpty);
     expect(c.customers.selected, isNull);
@@ -29,16 +29,19 @@ void main() {
     expect(c.errorMessage, isNull);
   });
 
-  test('checkout empties cart, clears customer, returns a transaction', () async {
-    final c = AppController();
-    await c.loginAsRoleForTest(UserRole.cashier);
-    c.customers.select(c.customers.items.first);
-    c.cart.addToCart(c.products.items.first);
-    final tx = await c.checkout();
-    expect(tx, isNotNull);
-    expect(c.cart.lines, isEmpty);
-    expect(c.customers.selected, isNull);
-  });
+  test(
+    'checkout empties cart, clears customer, returns a transaction',
+    () async {
+      final c = AppController();
+      await c.loginAsRoleForTest(UserRole.cashier);
+      c.customers.select(c.customers.items.first);
+      c.cart.addToCart(c.products.items.first);
+      final tx = await c.checkout();
+      expect(tx, isNotNull);
+      expect(c.cart.lines, isEmpty);
+      expect(c.customers.selected, isNull);
+    },
+  );
 
   test('checkout returns null with empty cart', () async {
     final c = AppController();

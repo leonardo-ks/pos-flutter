@@ -21,8 +21,8 @@ class FakeProductRepository implements ProductRepository {
   FakeProductRepository({
     List<PagedProducts>? pages,
     List<PagedProducts>? morePages,
-  })  : _pages = [...?pages],
-        _morePages = [...?morePages];
+  }) : _pages = [...?pages],
+       _morePages = [...?morePages];
 
   final List<PagedProducts> _pages;
   final List<PagedProducts> _morePages;
@@ -82,8 +82,8 @@ class FakeCustomerRepository implements CustomerRepository {
   FakeCustomerRepository({
     List<PagedCustomers>? pages,
     List<PagedCustomers>? morePages,
-  })  : _pages = [...?pages],
-        _morePages = [...?morePages];
+  }) : _pages = [...?pages],
+       _morePages = [...?morePages];
 
   final List<PagedCustomers> _pages;
   final List<PagedCustomers> _morePages;
@@ -104,7 +104,10 @@ class FakeCustomerRepository implements CustomerRepository {
   }
 
   @override
-  Future<PagedCustomers> fetchCustomerPage({String? query, String? cursor}) async {
+  Future<PagedCustomers> fetchCustomerPage({
+    String? query,
+    String? cursor,
+  }) async {
     _maybeThrow();
     if (cursor != null) {
       fetchMoreCount++;
@@ -167,16 +170,14 @@ class FakeFeatureRepository implements FeatureRepository {
     String path,
     Map<String, Object?> body, {
     int? id,
-  }) async =>
-      FeatureRecord({'id': id ?? 1, ...body});
+  }) async => FeatureRecord({'id': id ?? 1, ...body});
 
   @override
   Future<List<FeatureRecord>> saveBatch(
     String path,
     List<Map<String, Object?>> items, {
     List<int> deleteIds = const [],
-  }) async =>
-      [for (final item in items) FeatureRecord(item)];
+  }) async => [for (final item in items) FeatureRecord(item)];
 
   @override
   Future<void> delete(String path, int id) async {}
@@ -237,8 +238,7 @@ class FakeReportRepository implements ReportRepository {
     int? productId,
     int? categoryId,
     int? customerId,
-  }) async =>
-      exported;
+  }) async => exported;
 
   @override
   Map<String, String> rangeQuery(
@@ -291,6 +291,5 @@ class FakeTransactionRepository implements TransactionRepository {
   Future<List<SaleTransaction>> fetchTransactions({
     required AppUser user,
     required List<Customer> customers,
-  }) async =>
-      List.of(history);
+  }) async => List.of(history);
 }

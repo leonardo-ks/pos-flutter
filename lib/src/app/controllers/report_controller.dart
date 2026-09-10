@@ -1,3 +1,6 @@
+// ignore_for_file: prefer_initializing_formals, unused_field
+// (private fields can't be named parameters, so the initializer list is required;
+//  _loadMoreGenericReport is kept for symmetry with _loadGenericReport)
 import 'package:flutter/material.dart';
 
 import '../../auth/models/app_user.dart';
@@ -16,17 +19,14 @@ class ReportController extends ChangeNotifier {
     this._txRepo, {
     required bool Function() canManage,
     required List<Customer> Function() customers,
-    required Future<void> Function(String kind, {String? search}) loadGenericReport,
-    required Future<void> Function(String kind, {String? search}) loadMoreGenericReport,
-  })  :
-        // ignore: prefer_initializing_formals
-        _canManage = canManage,
-        // ignore: prefer_initializing_formals
-        _customers = customers,
-        // ignore: prefer_initializing_formals
-        _loadGenericReport = loadGenericReport,
-        // ignore: prefer_initializing_formals
-        _loadMoreGenericReport = loadMoreGenericReport;
+    required Future<void> Function(String kind, {String? search})
+    loadGenericReport,
+    required Future<void> Function(String kind, {String? search})
+    loadMoreGenericReport,
+  }) : _canManage = canManage,
+       _customers = customers,
+       _loadGenericReport = loadGenericReport,
+       _loadMoreGenericReport = loadMoreGenericReport;
 
   final AsyncGuard _guard;
   final ReportRepository _reportRepo;
@@ -34,8 +34,8 @@ class ReportController extends ChangeNotifier {
   final bool Function() _canManage;
   final List<Customer> Function() _customers;
   final Future<void> Function(String kind, {String? search}) _loadGenericReport;
-  // ignore: unused_field  (kept for symmetry; wire a caller if a "load more" report control needs it)
-  final Future<void> Function(String kind, {String? search}) _loadMoreGenericReport;
+  final Future<void> Function(String kind, {String? search})
+  _loadMoreGenericReport;
 
   final ReportFilterState report = ReportFilterState();
   final ReportFilterState returnReport = ReportFilterState();
@@ -84,8 +84,10 @@ class ReportController extends ChangeNotifier {
     await _loadGenericReport('all-transactions');
   }
 
-  Future<void> setCustomRange(DateTimeRange range,
-      {String kind = 'all-transactions'}) async {
+  Future<void> setCustomRange(
+    DateTimeRange range, {
+    String kind = 'all-transactions',
+  }) async {
     final matched = _matchingQuickRange(range);
     final f = filterFor(kind);
     f.range = matched ?? ReportRange.custom;
@@ -98,7 +100,10 @@ class ReportController extends ChangeNotifier {
     await _loadGenericReport('all-transactions');
   }
 
-  Future<void> setProductFilter(int? id, {String kind = 'all-transactions'}) async {
+  Future<void> setProductFilter(
+    int? id, {
+    String kind = 'all-transactions',
+  }) async {
     filterFor(kind).productId = id;
     notifyListeners();
     if (kind == 'returns') {
@@ -109,7 +114,10 @@ class ReportController extends ChangeNotifier {
     await _loadGenericReport('all-transactions');
   }
 
-  Future<void> setCategoryFilter(int? id, {String kind = 'all-transactions'}) async {
+  Future<void> setCategoryFilter(
+    int? id, {
+    String kind = 'all-transactions',
+  }) async {
     filterFor(kind).categoryId = id;
     notifyListeners();
     if (kind == 'returns') {
@@ -120,7 +128,10 @@ class ReportController extends ChangeNotifier {
     await _loadGenericReport('all-transactions');
   }
 
-  Future<void> setCustomerFilter(int? id, {String kind = 'all-transactions'}) async {
+  Future<void> setCustomerFilter(
+    int? id, {
+    String kind = 'all-transactions',
+  }) async {
     filterFor(kind).customerId = id;
     notifyListeners();
     if (kind == 'returns') {
@@ -131,7 +142,10 @@ class ReportController extends ChangeNotifier {
     await _loadGenericReport('all-transactions');
   }
 
-  Future<void> setSupplierFilter(int? id, {String kind = 'all-transactions'}) async {
+  Future<void> setSupplierFilter(
+    int? id, {
+    String kind = 'all-transactions',
+  }) async {
     filterFor(kind).supplierId = id;
     notifyListeners();
     if (kind == 'returns') {
@@ -201,8 +215,10 @@ class ReportController extends ChangeNotifier {
   }
 
   Future<void> refetchTransactions(AppUser user) async {
-    _transactions =
-        await _txRepo.fetchTransactions(user: user, customers: _customers());
+    _transactions = await _txRepo.fetchTransactions(
+      user: user,
+      customers: _customers(),
+    );
   }
 
   Future<void> refetchSalesReportIfManager() async {
@@ -226,19 +242,23 @@ class ReportController extends ChangeNotifier {
     return switch (range) {
       ReportRange.today => DateTimeRange(start: today, end: today),
       ReportRange.week => DateTimeRange(
-          start: today.subtract(Duration(days: today.weekday - 1)),
-          end: today,
-        ),
+        start: today.subtract(Duration(days: today.weekday - 1)),
+        end: today,
+      ),
       ReportRange.month => DateTimeRange(
-          start: DateTime(today.year, today.month),
-          end: DateTime(today.year, today.month + 1, 0),
-        ),
+        start: DateTime(today.year, today.month),
+        end: DateTime(today.year, today.month + 1, 0),
+      ),
       ReportRange.custom || ReportRange.all => null,
     };
   }
 
   ReportRange? _matchingQuickRange(DateTimeRange range) {
-    final start = DateTime(range.start.year, range.start.month, range.start.day);
+    final start = DateTime(
+      range.start.year,
+      range.start.month,
+      range.start.day,
+    );
     final end = DateTime(range.end.year, range.end.month, range.end.day);
     for (final candidate in [
       ReportRange.today,

@@ -50,15 +50,23 @@ void main() {
     }
   });
 
-  test('administrator with empty role-permissions cache is allowed everything',
-      () async {
-    final c = await loggedInAs(UserRole.administrator);
-    expect(c.session.canViewMenu('anything-at-all'), isTrue);
-    expect(c.session.canCreateMenu('anything-at-all'), isTrue);
-  });
+  test(
+    'administrator with empty role-permissions cache is allowed everything',
+    () async {
+      final c = await loggedInAs(UserRole.administrator);
+      expect(c.session.canViewMenu('anything-at-all'), isTrue);
+      expect(c.session.canCreateMenu('anything-at-all'), isTrue);
+    },
+  );
 
-  test('availableSections is canViewSection filtered, order preserved', () async {
-    final c = await loggedInAs(UserRole.manager);
-    expect(c.session.availableSections, AppSection.values.where(c.session.canViewSection).toList());
-  });
+  test(
+    'availableSections is canViewSection filtered, order preserved',
+    () async {
+      final c = await loggedInAs(UserRole.manager);
+      expect(
+        c.session.availableSections,
+        AppSection.values.where(c.session.canViewSection).toList(),
+      );
+    },
+  );
 }

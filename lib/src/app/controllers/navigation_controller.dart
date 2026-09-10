@@ -8,8 +8,8 @@ class NavigationController extends ChangeNotifier {
   NavigationController({
     required bool Function(AppSection section) canView,
     required void Function(AppSection section) onEnterSection,
-  })  : _canView = canView,
-        _onEnterSection = onEnterSection;
+  }) : _canView = canView,
+       _onEnterSection = onEnterSection;
 
   final bool Function(AppSection section) _canView;
   final void Function(AppSection section) _onEnterSection;
